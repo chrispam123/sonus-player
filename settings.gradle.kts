@@ -21,3 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Sonus"
 include(":app")
+include(":domain")
+include(":data")
