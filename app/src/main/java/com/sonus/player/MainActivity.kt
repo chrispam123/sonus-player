@@ -1,5 +1,8 @@
 package com.sonus.player
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -7,10 +10,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.content.ContextCompat
+import com.sonus.player.ui.navigation.SonusNavigation
+import com.sonus.player.ui.permission.PermissionScreen
 import com.sonus.player.ui.theme.SonusTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,29 +28,29 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SonusTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    Manifest.permission.READ_MEDIA_AUDIO
+                } else {
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                }
+
+                var hasPermission by remember {
+                    mutableStateOf(
+                        ContextCompat.checkSelfPermission(this, permission) ==
+                            PackageManager.PERMISSION_GRANTED
                     )
+                }
+
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    if (hasPermission) {
+                        SonusNavigation()
+                    } else {
+                        PermissionScreen(
+                            onPermissionGranted = { hasPermission = true }
+                        )
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    SonusTheme {
-        Greeting("Android")
     }
 }
