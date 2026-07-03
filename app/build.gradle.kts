@@ -46,6 +46,10 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":data"))
 
+    // Media3 (needed for PlaybackService in :app)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.session)
+
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
