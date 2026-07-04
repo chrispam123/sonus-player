@@ -1,5 +1,6 @@
 package com.sonus.player.playback
 
+import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
@@ -11,6 +12,12 @@ class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var player: ExoPlayer? = null
 
+    companion object {
+        // Shared audio session ID for equalizer attachment
+        var audioSessionId: Int = 0
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
 
@@ -20,10 +27,13 @@ class PlaybackService : MediaSessionService() {
             .build()
 
         player = ExoPlayer.Builder(this)
-            .setAudioAttributes(audioAttributes, true) // true = handle audio focus
-            .setHandleAudioBecomingNoisy(true)          // pause when headphones unplugged
-            .setWakeMode(C.WAKE_MODE_LOCAL)             // PARTIAL_WAKE_LOCK
+            .setAudioAttributes(audioAttributes, true)
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
+
+        // Expose the audio session ID for equalizer
+        audioSessionId = player!!.audioSessionId
 
         mediaSession = MediaSession.Builder(this, player!!)
             .build()
@@ -40,6 +50,7 @@ class PlaybackService : MediaSessionService() {
         }
         mediaSession = null
         player = null
+        audioSessionId = 0
         super.onDestroy()
     }
 }

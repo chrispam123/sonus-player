@@ -1,6 +1,8 @@
 package com.sonus.player.data.di
 
+import com.sonus.player.data.player.EqualizerControllerImpl
 import com.sonus.player.data.player.Media3PlayerController
+import com.sonus.player.domain.controller.EqualizerController
 import com.sonus.player.domain.controller.PlayerController
 import dagger.Binds
 import dagger.Module
@@ -15,4 +17,8 @@ abstract class PlayerModule {
     @Binds
     @Singleton
     abstract fun bindPlayerController(impl: Media3PlayerController): PlayerController
+
+    @Binds
+    @Singleton
+    abstract fun bindEqualizerController(impl: EqualizerControllerImpl): EqualizerController
 }

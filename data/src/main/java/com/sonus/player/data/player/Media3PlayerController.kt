@@ -29,7 +29,8 @@ import javax.inject.Singleton
 
 @Singleton
 class Media3PlayerController @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val equalizerController: EqualizerControllerImpl
 ) : PlayerController {
 
     private var mediaController: MediaController? = null
@@ -73,6 +74,15 @@ class Media3PlayerController @Inject constructor(
 
         mediaController?.addListener(playerListener)
         startProgressUpdates()
+    }
+
+    /**
+     * Call this from the app layer to attach the equalizer once the service is running.
+     */
+    fun attachEqualizer(audioSessionId: Int) {
+        if (audioSessionId != 0) {
+            equalizerController.attachToSession(audioSessionId)
+        }
     }
 
     private val playerListener = object : Player.Listener {

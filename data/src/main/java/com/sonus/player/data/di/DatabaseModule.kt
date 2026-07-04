@@ -5,7 +5,9 @@ import android.content.Context
 import androidx.room.Room
 import com.sonus.player.data.local.SonusDatabase
 import com.sonus.player.data.local.dao.CoverArtDao
+import com.sonus.player.data.local.dao.HistoryDao
 import com.sonus.player.data.local.dao.LyricsDao
+import com.sonus.player.data.local.dao.PlaylistDao
 import com.sonus.player.data.local.dao.TrackDao
 import dagger.Module
 import dagger.Provides
@@ -37,6 +39,12 @@ object DatabaseModule {
 
     @Provides
     fun provideLyricsDao(database: SonusDatabase): LyricsDao = database.lyricsDao()
+
+    @Provides
+    fun providePlaylistDao(database: SonusDatabase): PlaylistDao = database.playlistDao()
+
+    @Provides
+    fun provideHistoryDao(database: SonusDatabase): HistoryDao = database.historyDao()
 
     @Provides
     fun provideContentResolver(@ApplicationContext context: Context): ContentResolver =

@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Icon
@@ -23,19 +25,26 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.sonus.player.domain.model.RepeatMode
 
 @Composable
 fun NowPlayingScreen(
     viewModel: PlayerViewModel,
-    onLyricsClick: () -> Unit = {}
+    onLyricsClick: () -> Unit = {},
+    playlists: List<com.sonus.player.domain.model.Playlist> = emptyList(),
+    onAddToPlaylist: (trackId: Long, playlistId: Long) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val track = uiState.currentTrack
+    var showPlaylistDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -135,12 +144,83 @@ fun NowPlayingScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Shuffle + Repeat row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { viewModel.toggleShuffle() }) {
+                Icon(
+                    Icons.Rounded.Shuffle,
+                    contentDescription = "Shuffle",
+                    tint = if (uiState.shuffleEnabled) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-        // Lyrics button
-        androidx.compose.material3.TextButton(onClick = onLyricsClick) {
-            Text("Ver letras")
+            IconButton(onClick = { viewModel.toggleRepeatMode() }) {
+                Icon(
+                    imageVector = when (uiState.repeatMode) {
+                        RepeatMode.ONE -> Icons.Rounded.RepeatOne
+                        else -> Icons.Rounded.Repeat
+                    },
+                    contentDescription = "Repeat",
+                    tint = if (uiState.repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Action buttons row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            androidx.compose.material3.TextButton(onClick = { showPlaylistDialog = true }) {
+                Text("+ Playlist")
+            }
+            androidx.compose.material3.TextButton(onClick = onLyricsClick) {
+                Text("Ver letras")
+            }
+        }
+    }
+
+    // Add to playlist dialog
+    if (showPlaylistDialog && track != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showPlaylistDialog = false },
+            title = { Text("Agregar a playlist") },
+            text = {
+                if (playlists.isEmpty()) {
+                    Text("No hay playlists. Crea una desde la pestaña Playlists.")
+                } else {
+                    Column {
+                        Text("\"${track.title}\"", style = MaterialTheme.typography.bodySmall)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        playlists.forEach { playlist ->
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    onAddToPlaylist(track.id, playlist.id)
+                                    showPlaylistDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(playlist.name)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showPlaylistDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 

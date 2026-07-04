@@ -1,6 +1,7 @@
 package com.sonus.player.ui.library
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,24 +13,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.sonus.player.domain.model.Playlist
 import com.sonus.player.domain.model.Track
 
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
-    onTrackClick: (Track, List<Track>) -> Unit
+    playlists: List<Playlist> = emptyList(),
+    onTrackClick: (Track, List<Track>) -> Unit,
+    onAddToPlaylist: (trackId: Long, playlistId: Long) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var trackForPlaylist by remember { mutableStateOf<Track?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
@@ -55,24 +65,43 @@ fun LibraryScreen(
                     items(uiState.tracks, key = { it.id }) { track ->
                         TrackListItem(
                             track = track,
-                            onClick = { onTrackClick(track, uiState.tracks) }
+                            onClick = { onTrackClick(track, uiState.tracks) },
+                            onLongClick = { trackForPlaylist = track }
                         )
                     }
                 }
             }
         }
     }
+
+    // Add to playlist dialog
+    trackForPlaylist?.let { track ->
+        AddToPlaylistDialog(
+            trackName = track.title,
+            playlists = playlists,
+            onDismiss = { trackForPlaylist = null },
+            onSelect = { playlistId ->
+                onAddToPlaylist(track.id, playlistId)
+                trackForPlaylist = null
+            }
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TrackListItem(
     track: Track,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -103,6 +132,41 @@ private fun TrackListItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+@Composable
+private fun AddToPlaylistDialog(
+    trackName: String,
+    playlists: List<Playlist>,
+    onDismiss: () -> Unit,
+    onSelect: (Long) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Agregar a playlist") },
+        text = {
+            if (playlists.isEmpty()) {
+                Text("No hay playlists. Crea una primero desde la pestaña Playlists.")
+            } else {
+                Column {
+                    Text("\"$trackName\"", style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    playlists.forEach { playlist ->
+                        TextButton(
+                            onClick = { onSelect(playlist.id) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(playlist.name)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
 }
 
 private fun formatDuration(ms: Long): String {

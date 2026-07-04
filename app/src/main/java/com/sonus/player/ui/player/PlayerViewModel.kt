@@ -7,6 +7,7 @@ import com.sonus.player.domain.controller.PlayerController
 import com.sonus.player.domain.model.PlaybackProgress
 import com.sonus.player.domain.model.RepeatMode
 import com.sonus.player.domain.model.Track
+import com.sonus.player.domain.repository.PlaybackHistoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,11 +25,14 @@ data class PlayerUiState(
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    private val playerController: PlayerController
+    private val playerController: PlayerController,
+    private val historyRepository: PlaybackHistoryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+
+    private var lastTrackedTrackId: Long = -1
 
     init {
         observePlayback()
@@ -37,7 +41,14 @@ class PlayerViewModel @Inject constructor(
 
     private fun connectToService() {
         viewModelScope.launch {
-            (playerController as? Media3PlayerController)?.connect()
+            val controller = playerController as? Media3PlayerController
+            controller?.connect()
+            // Try attaching EQ after service starts
+            kotlinx.coroutines.delay(2000)
+            val sessionId = com.sonus.player.playback.PlaybackService.audioSessionId
+            if (sessionId != 0) {
+                controller?.attachEqualizer(sessionId)
+            }
         }
     }
 
@@ -50,6 +61,18 @@ class PlayerViewModel @Inject constructor(
                     shuffleEnabled = state.shuffleEnabled,
                     repeatMode = state.repeatMode
                 )
+                // Track history when a new song starts playing
+                val track = state.currentTrack
+                if (track != null && state.isPlaying && track.id != lastTrackedTrackId) {
+                    lastTrackedTrackId = track.id
+                    historyRepository.addToHistory(track)
+
+                    // Re-attach EQ when playback starts (ensures session ID is valid)
+                    val sessionId = com.sonus.player.playback.PlaybackService.audioSessionId
+                    if (sessionId != 0) {
+                        (playerController as? Media3PlayerController)?.attachEqualizer(sessionId)
+                    }
+                }
             }
         }
         viewModelScope.launch {
