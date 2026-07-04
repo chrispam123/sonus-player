@@ -7,6 +7,7 @@ import com.sonus.player.data.local.dao.CoverArtDao
 import com.sonus.player.data.local.entity.CoverArtCacheEntity
 import com.sonus.player.data.remote.lastfm.LastFmApiService
 import com.sonus.player.data.remote.musicbrainz.MusicBrainzApiService
+import com.sonus.player.data.util.MetadataCleaner
 import com.sonus.player.domain.model.CoverArtResult
 import com.sonus.player.domain.model.Track
 import com.sonus.player.domain.repository.CoverArtRepository
@@ -87,15 +88,15 @@ class CoverArtResolverImpl @Inject constructor(
     private suspend fun tryLastFm(track: Track): String? {
         if (LASTFM_API_KEY.isEmpty()) return null
         return try {
+            val clean = MetadataCleaner.clean(track.artist, track.title, track.album)
             val response = lastFmApi.getAlbumInfo(
-                artist = track.artist,
-                album = track.album,
+                artist = clean.artist,
+                album = clean.album,
                 apiKey = LASTFM_API_KEY
             )
-            // Get the largest image available
             response.album?.image
                 ?.filter { it.url.isNotBlank() }
-                ?.lastOrNull()  // Last is usually the largest
+                ?.lastOrNull()
                 ?.url
         } catch (e: Exception) {
             null
@@ -104,10 +105,10 @@ class CoverArtResolverImpl @Inject constructor(
 
     private suspend fun tryMusicBrainz(track: Track): String? {
         return try {
-            val query = "artist:${track.artist} AND release:${track.album}"
+            val clean = MetadataCleaner.clean(track.artist, track.title, track.album)
+            val query = "artist:${clean.artist} AND release:${clean.album}"
             val response = musicBrainzApi.searchRelease(query)
             val releaseId = response.releases?.firstOrNull()?.id ?: return null
-            // Cover Art Archive URL (direct image link)
             "https://coverartarchive.org/release/$releaseId/front-500"
         } catch (e: Exception) {
             null

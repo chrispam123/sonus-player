@@ -1,6 +1,8 @@
 package com.sonus.player.data.di
 
+import com.sonus.player.data.remote.genius.GeniusApiService
 import com.sonus.player.data.remote.lastfm.LastFmApiService
+import com.sonus.player.data.remote.lrclib.LrcLibApiService
 import com.sonus.player.data.remote.musicbrainz.MusicBrainzApiService
 import dagger.Module
 import dagger.Provides
@@ -60,4 +62,34 @@ object NetworkModule {
     @Singleton
     fun provideMusicBrainzApiService(@Named("musicbrainz") retrofit: Retrofit): MusicBrainzApiService =
         retrofit.create(MusicBrainzApiService::class.java)
+
+    @Provides
+    @Singleton
+    @Named("lrclib")
+    fun provideLrcLibRetrofit(client: OkHttpClient): Retrofit =
+        Retrofit.Builder()
+            .baseUrl("https://lrclib.net/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideLrcLibApiService(@Named("lrclib") retrofit: Retrofit): LrcLibApiService =
+        retrofit.create(LrcLibApiService::class.java)
+
+    @Provides
+    @Singleton
+    @Named("genius")
+    fun provideGeniusRetrofit(client: OkHttpClient): Retrofit =
+        Retrofit.Builder()
+            .baseUrl("https://api.genius.com/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideGeniusApiService(@Named("genius") retrofit: Retrofit): GeniusApiService =
+        retrofit.create(GeniusApiService::class.java)
 }

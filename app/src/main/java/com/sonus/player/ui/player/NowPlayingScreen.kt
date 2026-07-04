@@ -31,7 +31,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun NowPlayingScreen(
-    viewModel: PlayerViewModel
+    viewModel: PlayerViewModel,
+    onLyricsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val track = uiState.currentTrack
@@ -132,6 +133,13 @@ fun NowPlayingScreen(
                     modifier = Modifier.size(40.dp)
                 )
             }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Lyrics button
+        androidx.compose.material3.TextButton(onClick = onLyricsClick) {
+            Text("Ver letras")
         }
     }
 }

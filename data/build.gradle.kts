@@ -25,7 +25,7 @@ android {
 
         // Inject API keys as BuildConfig fields
         buildConfigField("String", "LASTFM_API_KEY", "\"${secrets.getProperty("LASTFM_API_KEY", "")}\"")
-    }
+        buildConfigField("String", "GENIUS_ACCESS_TOKEN", "\"${secrets.getProperty("GENIUS_ACCESS_TOKEN", "")}\"")    }
 
     buildFeatures {
         buildConfig = true
@@ -76,6 +76,9 @@ dependencies {
 
     // DataStore
     implementation(libs.androidx.datastore.preferences)
+
+    // HTML Parsing (Genius lyrics scraping)
+    implementation(libs.jsoup)
 
     // Testing
     testImplementation(libs.junit)
