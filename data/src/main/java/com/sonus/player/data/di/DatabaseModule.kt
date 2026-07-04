@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import androidx.room.Room
 import com.sonus.player.data.local.SonusDatabase
+import com.sonus.player.data.local.dao.CoverArtDao
 import com.sonus.player.data.local.dao.TrackDao
 import dagger.Module
 import dagger.Provides
@@ -23,10 +24,15 @@ object DatabaseModule {
             context,
             SonusDatabase::class.java,
             "sonus_database"
-        ).build()
+        )
+        .fallbackToDestructiveMigration(true)
+        .build()
 
     @Provides
     fun provideTrackDao(database: SonusDatabase): TrackDao = database.trackDao()
+
+    @Provides
+    fun provideCoverArtDao(database: SonusDatabase): CoverArtDao = database.coverArtDao()
 
     @Provides
     fun provideContentResolver(@ApplicationContext context: Context): ContentResolver =

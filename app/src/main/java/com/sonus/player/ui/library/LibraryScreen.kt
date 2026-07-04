@@ -76,6 +76,11 @@ private fun TrackListItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        com.sonus.player.ui.components.CoverArtImage(
+            track = track,
+            size = 48.dp
+        )
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,

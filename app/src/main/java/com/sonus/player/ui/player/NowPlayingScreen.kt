@@ -43,12 +43,10 @@ fun NowPlayingScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Cover art placeholder
-        Icon(
-            imageVector = Icons.Rounded.MusicNote,
-            contentDescription = null,
-            modifier = Modifier.size(200.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        // Cover art
+        com.sonus.player.ui.components.CoverArtImage(
+            track = track,
+            size = 250.dp
         )
 
         Spacer(modifier = Modifier.height(32.dp))

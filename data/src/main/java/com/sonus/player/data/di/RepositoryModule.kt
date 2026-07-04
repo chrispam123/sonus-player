@@ -1,7 +1,9 @@
 package com.sonus.player.data.di
 
+import com.sonus.player.data.repository.CoverArtResolverImpl
 import com.sonus.player.data.repository.MusicRepositoryImpl
 import com.sonus.player.data.scanner.MusicScannerImpl
+import com.sonus.player.domain.repository.CoverArtRepository
 import com.sonus.player.domain.repository.MusicRepository
 import com.sonus.player.domain.repository.MusicScannerRepository
 import dagger.Binds
@@ -21,4 +23,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindMusicScanner(impl: MusicScannerImpl): MusicScannerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCoverArtRepository(impl: CoverArtResolverImpl): CoverArtRepository
 }
