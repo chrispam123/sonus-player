@@ -49,6 +49,7 @@ dependencies {
     // Media3 (needed for PlaybackService in :app)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
+    implementation(libs.kotlinx.coroutines.guava)
 
     // AndroidX Core
     implementation(libs.androidx.core.ktx)

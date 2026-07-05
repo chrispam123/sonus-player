@@ -1,6 +1,7 @@
 package com.sonus.player.data.repository
 
 import com.sonus.player.data.local.dao.PlaylistDao
+import com.sonus.player.data.local.dao.PlaylistWithCount
 import com.sonus.player.data.local.dao.TrackDao
 import com.sonus.player.data.local.entity.PlaylistEntity
 import com.sonus.player.data.local.entity.PlaylistTrackCrossRef
@@ -20,14 +21,13 @@ class PlaylistRepositoryImpl @Inject constructor(
 ) : PlaylistRepository {
 
     override fun getAllPlaylists(): Flow<List<Playlist>> =
-        playlistDao.getAllPlaylists().map { entities ->
-            entities.map { entity ->
-                val count = playlistDao.getTrackCount(entity.id)
+        playlistDao.getAllPlaylistsWithCount().map { entries ->
+            entries.map { entry ->
                 Playlist(
-                    id = entity.id,
-                    name = entity.name,
-                    createdAt = entity.createdAt,
-                    trackCount = count
+                    id = entry.id,
+                    name = entry.name,
+                    createdAt = entry.created_at,
+                    trackCount = entry.track_count
                 )
             }
         }

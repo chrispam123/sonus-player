@@ -6,16 +6,18 @@ import com.sonus.player.domain.model.Track
 import com.sonus.player.domain.repository.MusicRepository
 import com.sonus.player.domain.repository.MusicScannerRepository
 import com.sonus.player.data.repository.MusicRepositoryImpl
+import com.sonus.player.data.local.dao.TrackDao
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class LibraryUiState(
     val tracks: List<Track> = emptyList(),
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val isScanning: Boolean = false,
     val error: String? = null
 )
@@ -24,7 +26,8 @@ data class LibraryUiState(
 class LibraryViewModel @Inject constructor(
     private val musicRepository: MusicRepository,
     private val musicScanner: MusicScannerRepository,
-    private val musicRepositoryImpl: MusicRepositoryImpl
+    private val musicRepositoryImpl: MusicRepositoryImpl,
+    private val trackDao: TrackDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -32,7 +35,7 @@ class LibraryViewModel @Inject constructor(
 
     init {
         observeTracks()
-        scanLibrary() // Auto-scan on first access
+        scanIfEmpty() // Only scan if database is empty
     }
 
     private fun observeTracks() {
@@ -42,6 +45,19 @@ class LibraryViewModel @Inject constructor(
                     tracks = tracks,
                     isLoading = false
                 )
+            }
+        }
+    }
+
+    /**
+     * Only scan MediaStore if the database has no tracks.
+     * This prevents re-scanning every time the user navigates to Library.
+     */
+    private fun scanIfEmpty() {
+        viewModelScope.launch {
+            val count = trackDao.getTrackCount()
+            if (count == 0) {
+                scanLibrary()
             }
         }
     }

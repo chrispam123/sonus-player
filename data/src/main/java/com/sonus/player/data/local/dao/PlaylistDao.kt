@@ -10,11 +10,27 @@ import com.sonus.player.data.local.entity.PlaylistTrackCrossRef
 import com.sonus.player.data.local.entity.TrackEntity
 import kotlinx.coroutines.flow.Flow
 
+data class PlaylistWithCount(
+    val id: Long,
+    val name: String,
+    val created_at: Long,
+    val track_count: Int
+)
+
 @Dao
 interface PlaylistDao {
 
     @Query("SELECT * FROM playlists ORDER BY created_at DESC")
     fun getAllPlaylists(): Flow<List<PlaylistEntity>>
+
+    // Get playlists with track count in a single query (no N+1)
+    @Query("""
+        SELECT p.id, p.name, p.created_at, 
+        (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id) as track_count
+        FROM playlists p
+        ORDER BY p.created_at DESC
+    """)
+    fun getAllPlaylistsWithCount(): Flow<List<PlaylistWithCount>>
 
     @Query("SELECT * FROM playlists WHERE id = :id")
     suspend fun getPlaylistById(id: Long): PlaylistEntity?
