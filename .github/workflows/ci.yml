@@ -1,0 +1,60 @@
+name: Sonus CI
+
+# Triggers: PR to develop, or push to develop (after merge)
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+jobs:
+  build:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
+          restore-keys: gradle-
+
+      - name: Create secrets.properties (CI placeholder)
+        run: |
+          echo "LASTFM_API_KEY=" > secrets.properties
+          echo "GENIUS_ACCESS_TOKEN=" >> secrets.properties
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build domain module
+        run: ./gradlew :domain:build
+
+      - name: Build data module
+        run: ./gradlew :data:compileDebugKotlin
+
+      - name: Build app (generate APK)
+        run: ./gradlew :app:assembleDebug
+
+      - name: Run lint
+        run: ./gradlew :app:lintDebug
+        continue-on-error: true  # Don't fail the build on lint warnings for now
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonus-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
