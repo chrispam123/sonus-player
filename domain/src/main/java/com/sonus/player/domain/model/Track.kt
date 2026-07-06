@@ -14,5 +14,14 @@ data class Track(
     val format: AudioFormat,
     val trackNumber: Int?,
     val year: Int?,
-    val genre: String?
-)
+    val genre: String?,
+    // Streaming support: if not null, this track is a remote stream
+    val streamUrl: String? = null,
+    val coverArtUrl: String? = null
+) {
+    /** True if this track is a remote stream (Jamendo, etc.) */
+    val isStream: Boolean get() = streamUrl != null
+
+    /** The URI to use for playback: streamUrl for remote, filePath for local */
+    val playbackUri: String get() = streamUrl ?: filePath
+}

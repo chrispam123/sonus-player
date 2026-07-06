@@ -213,7 +213,7 @@ class Media3PlayerController @Inject constructor(
             .build()
 
         return MediaItem.Builder()
-            .setUri(Uri.parse(filePath))
+            .setUri(Uri.parse(playbackUri))
             .setMediaMetadata(metadata)
             .build()
     }

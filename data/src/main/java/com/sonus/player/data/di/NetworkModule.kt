@@ -1,6 +1,7 @@
 package com.sonus.player.data.di
 
 import com.sonus.player.data.remote.genius.GeniusApiService
+import com.sonus.player.data.remote.jamendo.JamendoApiService
 import com.sonus.player.data.remote.lastfm.LastFmApiService
 import com.sonus.player.data.remote.lrclib.LrcLibApiService
 import com.sonus.player.data.remote.musicbrainz.MusicBrainzApiService
@@ -92,4 +93,19 @@ object NetworkModule {
     @Singleton
     fun provideGeniusApiService(@Named("genius") retrofit: Retrofit): GeniusApiService =
         retrofit.create(GeniusApiService::class.java)
+
+    @Provides
+    @Singleton
+    @Named("jamendo")
+    fun provideJamendoRetrofit(client: OkHttpClient): Retrofit =
+        Retrofit.Builder()
+            .baseUrl("https://api.jamendo.com/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideJamendoApiService(@Named("jamendo") retrofit: Retrofit): JamendoApiService =
+        retrofit.create(JamendoApiService::class.java)
 }

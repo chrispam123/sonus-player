@@ -35,11 +35,16 @@ fun CoverArtImage(
         return
     }
 
-    val albumArtUri = getAlbumArtUri(track.albumId)
+    // Use coverArtUrl for streaming tracks, albumArt URI for local
+    val imageModel = if (track.coverArtUrl != null) {
+        track.coverArtUrl
+    } else {
+        getAlbumArtUri(track.albumId)
+    }
 
     SubcomposeAsyncImage(
         model = ImageRequest.Builder(LocalContext.current)
-            .data(albumArtUri)
+            .data(imageModel)
             .crossfade(true)
             .build(),
         contentDescription = "${track.album} cover art",

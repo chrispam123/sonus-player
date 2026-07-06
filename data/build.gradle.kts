@@ -25,7 +25,8 @@ android {
 
         // Inject API keys as BuildConfig fields
         buildConfigField("String", "LASTFM_API_KEY", "\"${secrets.getProperty("LASTFM_API_KEY", "")}\"")
-        buildConfigField("String", "GENIUS_ACCESS_TOKEN", "\"${secrets.getProperty("GENIUS_ACCESS_TOKEN", "")}\"")    }
+        buildConfigField("String", "GENIUS_ACCESS_TOKEN", "\"${secrets.getProperty("GENIUS_ACCESS_TOKEN", "")}\"")
+        buildConfigField("String", "JAMENDO_CLIENT_ID", "\"${secrets.getProperty("JAMENDO_CLIENT_ID", "")}\"")    }
 
     buildFeatures {
         buildConfig = true

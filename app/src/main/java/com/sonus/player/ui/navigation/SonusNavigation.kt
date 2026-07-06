@@ -10,8 +10,10 @@ import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -45,6 +47,8 @@ import com.sonus.player.ui.player.PlayerViewModel
 import com.sonus.player.ui.playlist.PlaylistDetailScreen
 import com.sonus.player.ui.playlist.PlaylistViewModel
 import com.sonus.player.ui.playlist.PlaylistsScreen
+import com.sonus.player.ui.search.SearchScreen
+import com.sonus.player.ui.search.SearchViewModel
 import com.sonus.player.ui.settings.SettingsScreen
 import com.sonus.player.ui.settings.SettingsViewModel
 import com.sonus.player.ui.theme.HankenGrotesk
@@ -72,7 +76,7 @@ fun SonusNavigation() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val isFullScreen = currentRoute == "lyrics" || currentRoute?.startsWith("playlist_detail") == true
+    val isFullScreen = currentRoute == "lyrics" || currentRoute == "search" || currentRoute?.startsWith("playlist_detail") == true
 
     Scaffold(
         topBar = {
@@ -86,6 +90,15 @@ fun SonusNavigation() {
                             fontSize = 20.sp,
                             letterSpacing = 2.sp
                         )
+                    },
+                    actions = {
+                        IconButton(onClick = { navController.navigate("search") }) {
+                            Icon(
+                                Icons.Rounded.Search,
+                                contentDescription = "Buscar",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,
@@ -175,6 +188,17 @@ fun SonusNavigation() {
                     composable("lyrics") {
                         val lyricsViewModel: LyricsViewModel = hiltViewModel()
                         LyricsScreen(viewModel = lyricsViewModel)
+                    }
+                    composable("search") {
+                        val searchViewModel: SearchViewModel = hiltViewModel()
+                        SearchScreen(
+                            viewModel = searchViewModel,
+                            onTrackClick = { track ->
+                                playerViewModel.playTrack(track, listOf(track))
+                                navController.navigate("now_playing")
+                            },
+                            onClose = { navController.popBackStack() }
+                        )
                     }
                     composable("playlists") {
                         val playlistViewModel: PlaylistViewModel = hiltViewModel()
