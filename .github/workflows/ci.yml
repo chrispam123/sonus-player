@@ -50,7 +50,7 @@ jobs:
 
       - name: Run lint
         run: ./gradlew :app:lintDebug
-        continue-on-error: true  # Don't fail the build on lint warnings for now
+        continue-on-error: true  # Don't fail the build on lint peligro for now
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
