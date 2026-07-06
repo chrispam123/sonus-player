@@ -1,10 +1,11 @@
 package com.sonus.player.playback
 
-import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.google.common.util.concurrent.Futures
@@ -28,7 +29,26 @@ class PlaybackService : MediaSessionService() {
             .setUsage(C.USAGE_MEDIA)
             .build()
 
+        // Custom DataSource that handles both local files and remote streams
+        // Remote streams get Referer header for ccMixter compatibility
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setDefaultRequestProperties(
+                mapOf(
+                    "User-Agent" to "Sonus/1.0 (Android Music Player)",
+                    "Referer" to "https://ccmixter.org/"
+                )
+            )
+
+        // DefaultDataSource wraps both file and http — picks the right one based on URI scheme
+        val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(
+            this,
+            httpDataSourceFactory
+        )
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+
         player = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_LOCAL)
@@ -56,16 +76,11 @@ class PlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 
-    /**
-     * Callback that handles playback resumption after app is killed.
-     * Without this, Media3 throws UnsupportedOperationException.
-     */
     private inner class SonusMediaSessionCallback : MediaSession.Callback {
         override fun onPlaybackResumption(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-            // Return empty — the app will restore state via PlayerViewModel
             return Futures.immediateFuture(
                 MediaSession.MediaItemsWithStartPosition(
                     emptyList(),

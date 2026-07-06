@@ -1,7 +1,7 @@
 package com.sonus.player.data.di
 
+import com.sonus.player.data.remote.ccmixter.CcMixterApiService
 import com.sonus.player.data.remote.genius.GeniusApiService
-import com.sonus.player.data.remote.jamendo.JamendoApiService
 import com.sonus.player.data.remote.lastfm.LastFmApiService
 import com.sonus.player.data.remote.lrclib.LrcLibApiService
 import com.sonus.player.data.remote.musicbrainz.MusicBrainzApiService
@@ -99,13 +99,13 @@ object NetworkModule {
     @Named("jamendo")
     fun provideJamendoRetrofit(client: OkHttpClient): Retrofit =
         Retrofit.Builder()
-            .baseUrl("https://api.jamendo.com/")
+            .baseUrl("https://ccmixter.org/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
     @Provides
     @Singleton
-    fun provideJamendoApiService(@Named("jamendo") retrofit: Retrofit): JamendoApiService =
-        retrofit.create(JamendoApiService::class.java)
+    fun provideCcMixterApiService(@Named("jamendo") retrofit: Retrofit): CcMixterApiService =
+        retrofit.create(CcMixterApiService::class.java)
 }

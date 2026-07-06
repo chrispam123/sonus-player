@@ -28,6 +28,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,14 +86,13 @@ fun NowPlayingScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Living Canvas area with cover art on top
+        // Living Canvas area with cover art on top (fades after 5 seconds)
         Box(
             modifier = Modifier
                 .size(280.dp),
             contentAlignment = Alignment.Center
         ) {
             // Layer 1: GLSL Shader Canvas (background, full 280dp)
-            // Random mood for now (IA will select mood per song later)
             val moods = com.sonus.player.ui.visualizer.ShaderRenderer.Mood.entries
             val currentMood = remember { moods.random() }
 
@@ -102,11 +103,30 @@ fun NowPlayingScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Layer 2: Cover art (foreground, smaller 200dp)
-            com.sonus.player.ui.components.CoverArtImage(
-                track = track,
-                size = 200.dp
-            )
+            // Layer 2: Cover art — fills entire 280dp, fades after 5s to reveal shader
+            val coverAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
+
+            // Reset alpha to 1 when track changes, then fade to 0 after 5s
+            LaunchedEffect(track?.id) {
+                coverAlpha.snapTo(1f)
+                kotlinx.coroutines.delay(5000)
+                coverAlpha.animateTo(
+                    targetValue = 0f,
+                    animationSpec = androidx.compose.animation.core.tween(
+                        durationMillis = 1500,
+                        easing = androidx.compose.animation.core.EaseOutCubic
+                    )
+                )
+            }
+
+            if (coverAlpha.value > 0f) {
+                Box(modifier = Modifier.alpha(coverAlpha.value)) {
+                    com.sonus.player.ui.components.CoverArtImage(
+                        track = track,
+                        size = 280.dp
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))

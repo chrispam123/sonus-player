@@ -78,7 +78,7 @@ fun SearchScreen(
 
         // Source indicator
         Text(
-            text = "POWERED BY JAMENDO • CREATIVE COMMONS",
+            text = "CONTENIDO LIBRE DE DERECHOS DE AUTOR",
             style = MaterialTheme.typography.labelSmall,
             color = SoftGray
         )

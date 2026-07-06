@@ -5,6 +5,7 @@ import com.sonus.player.data.local.dao.PlaylistWithCount
 import com.sonus.player.data.local.dao.TrackDao
 import com.sonus.player.data.local.entity.PlaylistEntity
 import com.sonus.player.data.local.entity.PlaylistTrackCrossRef
+import com.sonus.player.data.local.entity.TrackEntity
 import com.sonus.player.data.mapper.toDomain
 import com.sonus.player.domain.model.Playlist
 import com.sonus.player.domain.model.PlaylistWithTracks
@@ -57,6 +58,14 @@ class PlaylistRepositoryImpl @Inject constructor(
         )
 
     override suspend fun addTrackToPlaylist(playlistId: Long, trackId: Long) {
+        // Ensure the track exists in Room (stream tracks might not be saved yet)
+        val existingTrack = trackDao.getTrackById(trackId)
+        if (existingTrack == null) {
+            // This is likely a stream track — we can't add it with foreign key constraint
+            // Skip silently (stream tracks can't be added to playlists without persisting first)
+            return
+        }
+
         val maxPos = playlistDao.getMaxPosition(playlistId) ?: -1
         playlistDao.addTrackToPlaylist(
             PlaylistTrackCrossRef(

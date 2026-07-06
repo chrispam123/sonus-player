@@ -2,7 +2,7 @@ package com.sonus.player.ui.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sonus.player.data.repository.JamendoRepositoryImpl
+import com.sonus.player.data.repository.StreamingRepositoryImpl
 import com.sonus.player.domain.model.Track
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -22,7 +22,7 @@ data class SearchUiState(
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val jamendoRepository: JamendoRepositoryImpl
+    private val streamingRepository: StreamingRepositoryImpl
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -33,7 +33,6 @@ class SearchViewModel @Inject constructor(
     fun onQueryChanged(query: String) {
         _uiState.value = _uiState.value.copy(query = query)
 
-        // Debounce: wait 500ms after user stops typing
         searchJob?.cancel()
         if (query.length >= 2) {
             searchJob = viewModelScope.launch {
@@ -48,7 +47,7 @@ class SearchViewModel @Inject constructor(
     fun search(query: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSearching = true)
-            val results = jamendoRepository.searchTracks(query)
+            val results = streamingRepository.searchTracks(query)
             _uiState.value = _uiState.value.copy(
                 results = results,
                 isSearching = false,
