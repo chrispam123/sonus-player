@@ -12,6 +12,7 @@ import com.sonus.player.domain.model.Track
 import com.sonus.player.domain.repository.MusicRepository
 import com.sonus.player.domain.repository.PlaybackHistoryRepository
 import com.sonus.player.domain.repository.PreferencesRepository
+import com.sonus.player.ui.visualizer.AudioVisualizer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -58,6 +59,11 @@ class PlayerViewModel @Inject constructor(
     private var lastTrackedTrackId: Long = -1
     private var saveJob: Job? = null
 
+    // Audio Visualizer for Living Canvas
+    private val audioVisualizer = AudioVisualizer()
+    val fftData: StateFlow<FloatArray> = audioVisualizer.fftData
+    val amplitude: StateFlow<Float> = audioVisualizer.amplitude
+
     init {
         observePlayback()
         connectToService()
@@ -74,12 +80,14 @@ class PlayerViewModel @Inject constructor(
                 var sessionId = com.sonus.player.playback.PlaybackService.audioSessionId
                 if (sessionId != 0) {
                     controller?.attachEqualizer(sessionId)
+                    audioVisualizer.start(sessionId)
                 } else {
                     // Retry once after another 500ms
                     delay(500)
                     sessionId = com.sonus.player.playback.PlaybackService.audioSessionId
                     if (sessionId != 0) {
                         controller?.attachEqualizer(sessionId)
+                        audioVisualizer.start(sessionId)
                     }
                 }
 
@@ -286,6 +294,7 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         saveStateNow()
+        audioVisualizer.release()
         super.onCleared()
     }
 }

@@ -59,6 +59,10 @@ fun NowPlayingScreen(
     val track = uiState.currentTrack
     var showPlaylistDialog by remember { mutableStateOf(false) }
 
+    // Audio visualizer data
+    val fftData by viewModel.fftData.collectAsState()
+    val amplitude by viewModel.amplitude.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -80,16 +84,28 @@ fun NowPlayingScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Cover art in card style
+        // Living Canvas area with cover art on top
         Box(
             modifier = Modifier
-                .size(280.dp)
-                .background(DeepGray),
+                .size(280.dp),
             contentAlignment = Alignment.Center
         ) {
+            // Layer 1: GLSL Shader Canvas (background, full 280dp)
+            // Random mood for now (IA will select mood per song later)
+            val moods = com.sonus.player.ui.visualizer.ShaderRenderer.Mood.entries
+            val currentMood = remember { moods.random() }
+
+            com.sonus.player.ui.visualizer.ShaderCanvas(
+                fftData = fftData,
+                amplitude = amplitude,
+                mood = currentMood,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Layer 2: Cover art (foreground, smaller 200dp)
             com.sonus.player.ui.components.CoverArtImage(
                 track = track,
-                size = 280.dp
+                size = 200.dp
             )
         }
 

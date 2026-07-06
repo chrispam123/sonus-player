@@ -27,16 +27,26 @@ import androidx.compose.ui.unit.dp
 fun PermissionScreen(
     onPermissionGranted: () -> Unit
 ) {
-    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        Manifest.permission.READ_MEDIA_AUDIO
+    val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(
+            Manifest.permission.READ_MEDIA_AUDIO,
+            Manifest.permission.RECORD_AUDIO
+        )
     } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
+        arrayOf(
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.RECORD_AUDIO
+        )
     }
 
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        // We only need READ_MEDIA_AUDIO to proceed. RECORD_AUDIO is optional (for visualizer)
+        val audioGranted = results.entries.any {
+            (it.key == Manifest.permission.READ_MEDIA_AUDIO || it.key == Manifest.permission.READ_EXTERNAL_STORAGE) && it.value
+        }
+        if (audioGranted) {
             onPermissionGranted()
         }
     }
@@ -73,7 +83,7 @@ fun PermissionScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(onClick = { launcher.launch(permission) }) {
+        Button(onClick = { launcher.launch(permissions) }) {
             Text("Permitir acceso")
         }
     }
