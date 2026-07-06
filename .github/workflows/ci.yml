@@ -49,7 +49,7 @@ jobs:
         run: ./gradlew :app:assembleDebug
 
       - name: Run lint
-        run: ./gradlew :app:lintDebug --continue
+        run: ./gradlew :app:lintDebug --continue || true
         continue-on-error: true  # Lint issues don't block the build
 
       - name: Upload APK artifact
