@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build & Lint
+    name: Build, Lint & Sign
     runs-on: ubuntu-latest
 
     steps:
@@ -36,6 +36,17 @@ jobs:
           echo "LASTFM_API_KEY=" > secrets.properties
           echo "GENIUS_ACCESS_TOKEN=" >> secrets.properties
 
+      - name: Decode keystore from secret
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /tmp/sonus-release.jks
+
+      - name: Create keystore.properties for CI
+        run: |
+          echo "storeFile=/tmp/sonus-release.jks" > keystore.properties
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -45,16 +56,16 @@ jobs:
       - name: Build data module
         run: ./gradlew :data:compileDebugKotlin
 
-      - name: Build app (generate APK)
-        run: ./gradlew :app:assembleDebug
+      - name: Build Release APK (signed)
+        run: ./gradlew :app:assembleRelease
 
       - name: Run lint
         run: ./gradlew :app:lintDebug --continue || true
-        continue-on-error: true  # Lint issues don't block the build
+        continue-on-error: true
 
-      - name: Upload APK artifact
+      - name: Upload signed Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: sonus-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: sonus-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           retention-days: 30
