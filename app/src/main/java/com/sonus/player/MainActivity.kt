@@ -28,9 +28,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // TODO: REMOVE THIS — Temporary crash to verify Crashlytics is working
-        throw RuntimeException("Crashlytics test crash — remove after verification")
         setContent {
             SonusTheme {
                 val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
