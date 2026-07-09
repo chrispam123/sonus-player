@@ -49,6 +49,8 @@ Thumbs.db
 # API keys (NUNCA commitear)
 secrets.properties
 api_keys.properties
+keystore.properties
+*.jks
 
 # Coverage reports
 jacoco/
