@@ -81,5 +81,6 @@ infra/crash.log
 # BACKEND — JARs compilados de Kotlin Lambdas
 # ============================================================
 # Los JARs se generan en CI/CD, no se guardan en el repo
+# Solo ignoramos los JARs dentro de build/libs/ (resultado de shadowJar)
+# El gradle-wrapper.jar SÍ se trackea (necesario para compilar en CI)
 backend/**/build/
-backend/**/*.jar
