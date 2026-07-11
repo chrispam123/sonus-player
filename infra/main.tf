@@ -30,8 +30,17 @@ provider "aws" {
 # En vez de repetir "${var.project_name}-${var.environment}"
 # en cada recurso, lo calculamos una vez aquí.
 #
-# Con environment = "develop" y project_name = "sonus":
+# CAMBIO: Usamos terraform.workspace en vez de var.environment
+# para que el prefijo cambie automáticamente según el workspace
+# activo (develop o prod), aislando los estados en S3:
+#   env:/develop/terraform.tfstate → sonus-develop-*
+#   env:/prod/terraform.tfstate    → sonus-prod-*
+#
+# Con workspace = "develop" y project_name = "sonus":
 #   local.prefix = "sonus-develop"
+#
+# Con workspace = "prod" y project_name = "sonus":
+#   local.prefix = "sonus-prod"
 #
 # Resultado en los recursos:
 #   sonus-develop-apigateway
@@ -40,5 +49,7 @@ provider "aws" {
 #   etc.
 # ============================================================
 locals {
-  prefix = "${var.project_name}-${var.environment}"
+  # terraform.workspace devuelve "develop" o "prod" según el workspace activo
+  # Esto aísla automáticamente los recursos de cada entorno
+  prefix = "${var.project_name}-${terraform.workspace}"
 }
