@@ -98,6 +98,16 @@ jobs:
         working-directory: backend
         run: ./gradlew :lambda-receptor:shadowJar :lambda-lyrics:shadowJar :lambda-mood:shadowJar
 
+      # DEBUG: Verificar que shadowJar generó los archivos correctamente
+      - name: Debug - verify JARs before upload
+        run: |
+          echo "=== JARs generados ==="
+          ls -lh backend/lambda-receptor/build/libs/
+          ls -lh backend/lambda-lyrics/build/libs/
+          ls -lh backend/lambda-mood/build/libs/
+          echo "=== Todos los .jar del backend ==="
+          find backend -name "*.jar" -type f
+
       - name: Upload Lambda JARs
         uses: actions/upload-artifact@v4
         with:
@@ -125,25 +135,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Descargar los JARs compilados. Sin "path", download-artifact@v4
-      # extrae en $GITHUB_WORKSPACE preservando la estructura de directorios.
-      # Los JARs deben quedar en la ruta exacta que espera Terraform:
-      #   backend/lambda-receptor/build/libs/lambda-receptor.jar
+      # Descargar los JARs compilados en el job "build"
       - name: Download Lambda JARs
         uses: actions/download-artifact@v4
         with:
           name: sonus-lambda-jars
-          path: ${{ github.workspace }}
 
-      # DEBUG: Verificar que los JARs existen donde Terraform los espera
-      # filebase64sha256() en lambda.tf los lee desde ../backend/...
-      - name: Verify JARs exist
+      # DEBUG: Ver la estructura real de archivos después del download
+      - name: Debug - show actual file structure
         run: |
-          echo "=== Verificando JARs para Terraform ==="
-          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
-          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
-          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
-          echo "=== JARs verificados OK ==="
+          echo "=== Directorio actual ==="
+          pwd
+          echo "=== Todos los .jar encontrados ==="
+          find . -name "*.jar" -type f 2>/dev/null || echo "NINGUNO"
+          echo "=== Contenido de backend/ ==="
+          ls -R backend/ 2>/dev/null || echo "backend/ NO EXISTE"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -191,15 +197,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sonus-lambda-jars
-          path: ${{ github.workspace }}
 
-      - name: Verify JARs exist
+      - name: Debug - show actual file structure
         run: |
-          echo "=== Verificando JARs para Terraform ==="
-          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
-          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
-          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
-          echo "=== JARs verificados OK ==="
+          echo "=== Directorio actual ==="
+          pwd
+          echo "=== Todos los .jar encontrados ==="
+          find . -name "*.jar" -type f 2>/dev/null || echo "NINGUNO"
+          echo "=== Contenido de backend/ ==="
+          ls -R backend/ 2>/dev/null || echo "backend/ NO EXISTE"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
