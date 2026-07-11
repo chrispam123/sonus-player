@@ -125,14 +125,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Descargar los JARs compilados. download-artifact preserva
-      # la estructura de directorios, los JARs quedan en la ruta
-      # exacta que espera Terraform (lambda.tf):
+      # Descargar los JARs compilados. Sin "path", download-artifact@v4
+      # extrae en $GITHUB_WORKSPACE preservando la estructura de directorios.
+      # Los JARs deben quedar en la ruta exacta que espera Terraform:
       #   backend/lambda-receptor/build/libs/lambda-receptor.jar
       - name: Download Lambda JARs
         uses: actions/download-artifact@v4
         with:
           name: sonus-lambda-jars
+          path: ${{ github.workspace }}
+
+      # DEBUG: Verificar que los JARs existen donde Terraform los espera
+      # filebase64sha256() en lambda.tf los lee desde ../backend/...
+      - name: Verify JARs exist
+        run: |
+          echo "=== Verificando JARs para Terraform ==="
+          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
+          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
+          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
+          echo "=== JARs verificados OK ==="
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -180,6 +191,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sonus-lambda-jars
+          path: ${{ github.workspace }}
+
+      - name: Verify JARs exist
+        run: |
+          echo "=== Verificando JARs para Terraform ==="
+          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
+          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
+          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
+          echo "=== JARs verificados OK ==="
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
