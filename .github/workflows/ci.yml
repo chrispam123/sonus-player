@@ -135,21 +135,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Descargar los JARs compilados en el job "build"
+      # Descargar los JARs compilados en el job "build".
+      # upload-artifact@v4 recorta el prefijo común (backend/),
+      # por lo que los JARs llegan a la raíz:
+      #   ./lambda-receptor/build/libs/lambda-receptor.jar
+      # Hay que moverlos de vuelta a backend/ para que Terraform
+      # los encuentre con ../backend/lambda-receptor/...
       - name: Download Lambda JARs
         uses: actions/download-artifact@v4
         with:
           name: sonus-lambda-jars
 
-      # DEBUG: Ver la estructura real de archivos después del download
-      - name: Debug - show actual file structure
+      # Mover JARs a la ruta que espera Terraform (lambda.tf)
+      # De: ./lambda-receptor/build/libs/...
+      # A:  ./backend/lambda-receptor/build/libs/...
+      - name: Move JARs into backend/
         run: |
-          echo "=== Directorio actual ==="
-          pwd
-          echo "=== Todos los .jar encontrados ==="
-          find . -name "*.jar" -type f 2>/dev/null || echo "NINGUNO"
-          echo "=== Contenido de backend/ ==="
-          ls -R backend/ 2>/dev/null || echo "backend/ NO EXISTE"
+          mkdir -p backend/lambda-receptor/build/libs
+          mkdir -p backend/lambda-lyrics/build/libs
+          mkdir -p backend/lambda-mood/build/libs
+          mv lambda-receptor/build/libs/lambda-receptor.jar backend/lambda-receptor/build/libs/
+          mv lambda-lyrics/build/libs/lambda-lyrics.jar     backend/lambda-lyrics/build/libs/
+          mv lambda-mood/build/libs/lambda-mood.jar         backend/lambda-mood/build/libs/
+          echo "=== JARs movidos, verificando ==="
+          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
+          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
+          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -198,14 +209,21 @@ jobs:
         with:
           name: sonus-lambda-jars
 
-      - name: Debug - show actual file structure
+      # Mover JARs a la ruta que espera Terraform (lambda.tf)
+      # De: ./lambda-receptor/build/libs/...
+      # A:  ./backend/lambda-receptor/build/libs/...
+      - name: Move JARs into backend/
         run: |
-          echo "=== Directorio actual ==="
-          pwd
-          echo "=== Todos los .jar encontrados ==="
-          find . -name "*.jar" -type f 2>/dev/null || echo "NINGUNO"
-          echo "=== Contenido de backend/ ==="
-          ls -R backend/ 2>/dev/null || echo "backend/ NO EXISTE"
+          mkdir -p backend/lambda-receptor/build/libs
+          mkdir -p backend/lambda-lyrics/build/libs
+          mkdir -p backend/lambda-mood/build/libs
+          mv lambda-receptor/build/libs/lambda-receptor.jar backend/lambda-receptor/build/libs/
+          mv lambda-lyrics/build/libs/lambda-lyrics.jar     backend/lambda-lyrics/build/libs/
+          mv lambda-mood/build/libs/lambda-mood.jar         backend/lambda-mood/build/libs/
+          echo "=== JARs movidos, verificando ==="
+          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
+          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
+          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
