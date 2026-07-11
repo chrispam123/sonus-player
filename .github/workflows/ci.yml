@@ -125,25 +125,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Descargar los JARs compilados en el job anterior
-      # y colocarlos en las rutas que espera Terraform (lambda.tf)
+      # Descargar los JARs compilados. download-artifact preserva
+      # la estructura de directorios, los JARs quedan en la ruta
+      # exacta que espera Terraform (lambda.tf):
+      #   backend/lambda-receptor/build/libs/lambda-receptor.jar
       - name: Download Lambda JARs
         uses: actions/download-artifact@v4
         with:
           name: sonus-lambda-jars
-          path: backend/
-
-      # Recrear la estructura de directorios que espera Terraform
-      # El artifact descarga los JARs planos, hay que moverlos a:
-      # backend/lambda-*/build/libs/*.jar
-      - name: Place JARs for Terraform
-        run: |
-          mkdir -p backend/lambda-receptor/build/libs
-          mkdir -p backend/lambda-lyrics/build/libs
-          mkdir -p backend/lambda-mood/build/libs
-          mv backend/lambda-receptor.jar backend/lambda-receptor/build/libs/
-          mv backend/lambda-lyrics.jar   backend/lambda-lyrics/build/libs/
-          mv backend/lambda-mood.jar     backend/lambda-mood/build/libs/
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -191,16 +180,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sonus-lambda-jars
-          path: backend/
-
-      - name: Place JARs for Terraform
-        run: |
-          mkdir -p backend/lambda-receptor/build/libs
-          mkdir -p backend/lambda-lyrics/build/libs
-          mkdir -p backend/lambda-mood/build/libs
-          mv backend/lambda-receptor.jar backend/lambda-receptor/build/libs/
-          mv backend/lambda-lyrics.jar   backend/lambda-lyrics/build/libs/
-          mv backend/lambda-mood.jar     backend/lambda-mood/build/libs/
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
