@@ -3,6 +3,7 @@ package com.sonus.player.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sonus.player.data.repository.StreamingRepositoryImpl
+import com.sonus.player.domain.controller.PlayerController
 import com.sonus.player.domain.model.Track
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -22,7 +23,8 @@ data class SearchUiState(
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val streamingRepository: StreamingRepositoryImpl
+    private val streamingRepository: StreamingRepositoryImpl,
+    private val playerController: PlayerController
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -53,6 +55,12 @@ class SearchViewModel @Inject constructor(
                 isSearching = false,
                 hasSearched = true
             )
+            // Precargar el buffer de audio en background.
+            // Cuando el usuario toque una canción, el player ya tiene
+            // la conexión TCP/TLS abierta → playback casi instantáneo.
+            if (results.isNotEmpty()) {
+                playerController.preloadQueue(results, startIndex = 0)
+            }
         }
     }
 }
