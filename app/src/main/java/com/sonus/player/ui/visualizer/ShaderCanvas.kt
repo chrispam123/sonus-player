@@ -55,14 +55,22 @@ fun ShaderCanvas(
     // Al salir del player: pausar el hilo GL inmediatamente.
     // Sin esto, el hilo sigue corriendo ~4s generando frames invisibles.
     DisposableEffect(glSurfaceView) {
-        Log.d(TAG, "ENTER composicion, glSurfaceView=${System.identityHashCode(glSurfaceView)}")
+        Log.d(TAG, "ENTER composicion, glSurfaceView=${System.identityHashCode(glSurfaceView)}, parent=${glSurfaceView.parent}")
         onDispose {
-            Log.d(TAG, "onDispose -> removiendo del parent y pausando GL...")
-            // Remover del AndroidView wrapper inmediatamente.
-            // visibility=GONE no basta: el wrapper de Compose retiene el último frame.
-            (glSurfaceView.parent as? android.view.ViewGroup)?.removeView(glSurfaceView)
+            val parent = glSurfaceView.parent
+            Log.d(TAG, "onDispose -> parent=$parent, attachedToWindow=${glSurfaceView.isAttachedToWindow}")
+            // 1. Remover de la jerarquía de vistas
+            if (parent is android.view.ViewGroup) {
+                parent.removeView(glSurfaceView)
+                Log.d(TAG, "removeView OK")
+            }
+            // 2. Pausar hilo de render GL
             glSurfaceView.onPause()
-            Log.d(TAG, "removeView + onPause() completado")
+            Log.d(TAG, "onPause OK")
+            // 3. Destruir explícitamente la superficie EGL — esto fuerza
+            //    a SurfaceFlinger a liberar el buffer inmediatamente
+            glSurfaceView.onDetachedFromWindow()
+            Log.d(TAG, "onDetachedFromWindow OK")
         }
     }
 }
