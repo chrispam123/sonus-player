@@ -1,15 +1,12 @@
 package com.sonus.player.ui.visualizer
 
 import android.opengl.GLSurfaceView
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-
-private const val TAG = "ShaderCanvas"
 
 /**
  * Compose wrapper for GLSurfaceView that renders the Living Canvas shader.
@@ -33,12 +30,10 @@ fun ShaderCanvas(
     // Al salir de composición, DisposableEffect.onDispose llama a onPause()
     // y detiene el hilo de render inmediatamente.
     val glSurfaceView = remember {
-        Log.d(TAG, "CREATE GLSurfaceView")
         GLSurfaceView(context).apply {
             setEGLContextClientVersion(2)
             setRenderer(renderer)
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
-            Log.d(TAG, "renderMode=CONTINUOUSLY, renderer=${System.identityHashCode(renderer)}")
         }
     }
 
@@ -55,20 +50,16 @@ fun ShaderCanvas(
     // Al salir del player: pausar el hilo GL inmediatamente.
     // Sin esto, el hilo sigue corriendo ~4s generando frames invisibles.
     DisposableEffect(glSurfaceView) {
-        Log.d(TAG, "ENTER composicion, glSurfaceView=${System.identityHashCode(glSurfaceView)}, parent=${glSurfaceView.parent}")
         onDispose {
-            val parent = glSurfaceView.parent
-            Log.d(TAG, "onDispose -> parent=$parent, attachedToWindow=${glSurfaceView.isAttachedToWindow}")
-            // 1. Remover de la jerarquía de vistas
-            if (parent is android.view.ViewGroup) {
-                parent.removeView(glSurfaceView)
-                Log.d(TAG, "removeView OK")
-            } else {
-                Log.w(TAG, "parent NO es ViewGroup: ${parent?.javaClass?.simpleName}")
+            // Limpiar el buffer GL a negro ANTES de pausar.
+            // Aunque Compose ya desprendió la vista (parent=null),
+            // SurfaceFlinger retiene el último frame en la GPU ~4s.
+            // queueEvent pinta un frame negro → el shader desaparece instantáneamente.
+            glSurfaceView.queueEvent {
+                android.opengl.GLES20.glClearColor(0f, 0f, 0f, 1f)
+                android.opengl.GLES20.glClear(android.opengl.GLES20.GL_COLOR_BUFFER_BIT)
             }
-            // 2. Pausar hilo de render GL
             glSurfaceView.onPause()
-            Log.d(TAG, "onPause OK. attachedToWindow ahora=${glSurfaceView.isAttachedToWindow}")
         }
     }
 }
