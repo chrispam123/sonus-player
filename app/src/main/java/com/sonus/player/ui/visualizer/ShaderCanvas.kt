@@ -57,10 +57,12 @@ fun ShaderCanvas(
     DisposableEffect(glSurfaceView) {
         Log.d(TAG, "ENTER composicion, glSurfaceView=${System.identityHashCode(glSurfaceView)}")
         onDispose {
-            Log.d(TAG, "onDispose -> ocultando y pausando GL...")
-            glSurfaceView.visibility = android.view.View.GONE
+            Log.d(TAG, "onDispose -> removiendo del parent y pausando GL...")
+            // Remover del AndroidView wrapper inmediatamente.
+            // visibility=GONE no basta: el wrapper de Compose retiene el último frame.
+            (glSurfaceView.parent as? android.view.ViewGroup)?.removeView(glSurfaceView)
             glSurfaceView.onPause()
-            Log.d(TAG, "visibility=GONE + onPause() completado")
+            Log.d(TAG, "removeView + onPause() completado")
         }
     }
 }
