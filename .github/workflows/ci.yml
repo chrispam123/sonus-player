@@ -178,6 +178,13 @@ jobs:
         working-directory: infra
         run: terraform init
 
+      # Seleccionar el workspace "develop" para que el prefijo
+      # de recursos sea sonus-develop-* (coincide con el estado en S3)
+      - name: Select Terraform workspace
+        working-directory: infra
+        run: |
+          terraform workspace select develop || terraform workspace new develop
+
       - name: Terraform Plan
         working-directory: infra
         # En PR solo mostramos el plan, no aplicamos nada
