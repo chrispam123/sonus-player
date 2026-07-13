@@ -63,14 +63,12 @@ fun ShaderCanvas(
             if (parent is android.view.ViewGroup) {
                 parent.removeView(glSurfaceView)
                 Log.d(TAG, "removeView OK")
+            } else {
+                Log.w(TAG, "parent NO es ViewGroup: ${parent?.javaClass?.simpleName}")
             }
             // 2. Pausar hilo de render GL
             glSurfaceView.onPause()
-            Log.d(TAG, "onPause OK")
-            // 3. Destruir explícitamente la superficie EGL — esto fuerza
-            //    a SurfaceFlinger a liberar el buffer inmediatamente
-            glSurfaceView.onDetachedFromWindow()
-            Log.d(TAG, "onDetachedFromWindow OK")
+            Log.d(TAG, "onPause OK. attachedToWindow ahora=${glSurfaceView.isAttachedToWindow}")
         }
     }
 }
