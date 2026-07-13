@@ -1,12 +1,15 @@
 package com.sonus.player.ui.visualizer
 
 import android.opengl.GLSurfaceView
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+
+private const val TAG = "ShaderCanvas"
 
 /**
  * Compose wrapper for GLSurfaceView that renders the Living Canvas shader.
@@ -30,10 +33,12 @@ fun ShaderCanvas(
     // Al salir de composición, DisposableEffect.onDispose llama a onPause()
     // y detiene el hilo de render inmediatamente.
     val glSurfaceView = remember {
+        Log.d(TAG, "CREATE GLSurfaceView")
         GLSurfaceView(context).apply {
             setEGLContextClientVersion(2)
             setRenderer(renderer)
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
+            Log.d(TAG, "renderMode=CONTINUOUSLY, renderer=${System.identityHashCode(renderer)}")
         }
     }
 
@@ -50,8 +55,11 @@ fun ShaderCanvas(
     // Al salir del player: pausar el hilo GL inmediatamente.
     // Sin esto, el hilo sigue corriendo ~4s generando frames invisibles.
     DisposableEffect(glSurfaceView) {
+        Log.d(TAG, "ENTER composicion, glSurfaceView=${System.identityHashCode(glSurfaceView)}")
         onDispose {
+            Log.d(TAG, "onDispose -> llamando onPause()...")
             glSurfaceView.onPause()
+            Log.d(TAG, "onPause() completado")
         }
     }
 }
