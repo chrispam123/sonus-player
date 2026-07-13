@@ -62,6 +62,10 @@ class Media3PlayerController @Inject constructor(
     private var currentQueue: List<Track> = emptyList()
     private var currentIndex: Int = 0
 
+    // IDs de la cola precargada. Si playTrack recibe esta misma cola,
+    // nos saltamos setMediaItems + prepare y solo llamamos play().
+    private var preloadedQueueIds: Set<Long> = emptySet()
+
     suspend fun connect() {
         if (mediaController != null) return
         val sessionToken = SessionToken(
@@ -146,8 +150,51 @@ class Media3PlayerController @Inject constructor(
         playQueue(listOf(track), startIndex = 0)
     }
 
+    /**
+     * Precarga la cola en background: setMediaItems + prepare sin play.
+     * Solo precarga si no hay nada reproduciéndose actualmente
+     * (no interrumpimos lo que el usuario está escuchando).
+     */
+    override fun preloadQueue(tracks: List<Track>, startIndex: Int) {
+        val controller = mediaController ?: return
+
+        // Si ya hay algo sonando, no interrumpir — solo marcar para warmup futuro
+        if (controller.isPlaying || controller.playbackState == Player.STATE_BUFFERING) {
+            preloadedQueueIds = emptySet()
+            return
+        }
+
+        preloadedQueueIds = tracks.map { it.id }.toSet()
+        currentQueue = tracks
+        currentIndex = startIndex
+        _queue.value = tracks
+        _currentTrack.value = tracks[startIndex]
+
+        val mediaItems = tracks.map { it.toMediaItem() }
+        controller.setMediaItems(mediaItems, startIndex, 0L)
+        controller.prepare()
+        // No llamamos play() — el buffer se llena en background
+    }
+
     override fun playQueue(tracks: List<Track>, startIndex: Int) {
         val controller = mediaController ?: return
+
+        // Si esta misma cola ya está precargada, solo hacer play
+        val incomingIds = tracks.map { it.id }.toSet()
+        val alreadyPreloaded = incomingIds == preloadedQueueIds
+        preloadedQueueIds = emptySet() // consumir la precarga (solo se usa una vez)
+
+        if (alreadyPreloaded) {
+            // La cola ya está preparada. Solo movernos al índice correcto y reproducir.
+            if (startIndex != currentIndex) {
+                controller.seekToDefaultPosition(startIndex)
+                currentIndex = startIndex
+            }
+            _currentTrack.value = tracks[startIndex]
+            controller.play()
+            return
+        }
+
         currentQueue = tracks
         currentIndex = startIndex
         _queue.value = tracks
