@@ -14,6 +14,15 @@ interface PlayerController {
 
     fun play(track: Track)
     fun playQueue(tracks: List<Track>, startIndex: Int = 0)
+
+    /**
+     * Precarga una cola sin iniciar reproducción.
+     * ExoPlayer hace setMediaItems + prepare en background.
+     * Cuando el usuario toque playTrack() sobre esta misma cola,
+     * solo se llama play() → respuesta instantánea (~100ms vs ~8s).
+     */
+    fun preloadQueue(tracks: List<Track>, startIndex: Int = 0)
+
     fun pause()
     fun resume()
     fun seekTo(positionMs: Long)
