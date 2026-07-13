@@ -57,9 +57,10 @@ fun ShaderCanvas(
     DisposableEffect(glSurfaceView) {
         Log.d(TAG, "ENTER composicion, glSurfaceView=${System.identityHashCode(glSurfaceView)}")
         onDispose {
-            Log.d(TAG, "onDispose -> llamando onPause()...")
+            Log.d(TAG, "onDispose -> ocultando y pausando GL...")
+            glSurfaceView.visibility = android.view.View.GONE
             glSurfaceView.onPause()
-            Log.d(TAG, "onPause() completado")
+            Log.d(TAG, "visibility=GONE + onPause() completado")
         }
     }
 }
