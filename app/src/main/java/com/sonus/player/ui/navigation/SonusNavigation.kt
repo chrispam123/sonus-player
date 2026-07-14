@@ -133,7 +133,8 @@ fun SonusNavigation() {
                                         saveState = true
                                     }
                                     launchSingleTop = true
-                                    restoreState = true
+                                    // Sin restoreState: los ViewModels hiltViewModel() compartidos
+                                    // mantienen el estado sin necesidad de restaurar el back stack
                                 }
                             },
                             colors = NavigationBarItemDefaults.colors(
