@@ -35,7 +35,9 @@ fun ShaderCanvas(
     val context = LocalContext.current
     val renderer = remember {
         Log.d(TAG, "Creando ShaderRenderer")
-        ShaderRenderer()
+        ShaderRenderer().apply {
+            setTextureBitmap(context, com.sonus.player.R.drawable.munari)
+        }
     }
 
     renderer.isExiting = false
