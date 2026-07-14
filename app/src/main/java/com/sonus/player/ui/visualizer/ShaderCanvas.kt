@@ -31,7 +31,6 @@ fun ShaderCanvas(
 ) {
     val context = LocalContext.current
     val renderer = remember { ShaderRenderer() }
-    val textureView = remember { TextureView(context).apply { isOpaque = false } }
 
     renderer.isExiting = false
     renderer.fftData = fftData
@@ -40,17 +39,15 @@ fun ShaderCanvas(
 
     val renderScope = remember { CoroutineScope(Dispatchers.Default + Job()) }
 
-    textureView.surfaceTextureListener = remember {
+    val listener = remember {
         object : TextureView.SurfaceTextureListener {
-
             override fun onSurfaceTextureAvailable(
                 surface: SurfaceTexture,
                 width: Int,
                 height: Int
             ) {
                 val eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
-                val version = IntArray(2)
-                EGL14.eglInitialize(eglDisplay, version, 0, version, 0)
+                EGL14.eglInitialize(eglDisplay, IntArray(2), 0, IntArray(2), 0)
 
                 val configAttribs = intArrayOf(
                     EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
@@ -98,7 +95,16 @@ fun ShaderCanvas(
                 return true
             }
 
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
+                // no-op
+            }
+        }
+    }
+
+    val textureView = remember {
+        TextureView(context).apply {
+            isOpaque = false
+            surfaceTextureListener = listener
         }
     }
 
