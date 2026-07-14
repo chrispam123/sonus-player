@@ -22,14 +22,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/**
- * Compose wrapper that renders the Living Canvas shader on a TextureView.
- *
- * TextureView se renderiza como una View normal dentro de la jerarquía
- * de Compose (no crea superficie GPU independiente como GLSurfaceView).
- * Al desaparecer del árbol, desaparece instantáneamente — sin frames
- * fantasma en SurfaceFlinger.
- */
 @Composable
 fun ShaderCanvas(
     fftData: FloatArray,
@@ -41,26 +33,23 @@ fun ShaderCanvas(
     val renderer = remember { ShaderRenderer() }
     val textureView = remember { TextureView(context).apply { isOpaque = false } }
 
-    // Actualizar datos del renderer en cada recomposición
+    // Resetear flag de salida — ShaderRenderer persiste en remember
+    renderer.isExiting = false
     renderer.fftData = fftData
     renderer.amplitude = amplitude
     renderer.currentMood = mood
 
-    AndroidView(
-        factory = { textureView },
-        modifier = modifier
-    )
+    // Configurar EGL + loop de render ANTES de que AndroidView adjunte la vista.
+    // Si el listener se asigna después, onSurfaceTextureAvailable puede perderse.
+    val renderScope = remember { CoroutineScope(Dispatchers.Default + Job()) }
+    var renderJob: Job? = null
+    var eglDisplay: EGLDisplay? = null
+    var eglSurface: EGLSurface? = null
+    var eglContext: EGLContext? = null
 
-    // Configurar EGL + loop de render una sola vez, al entrar en composición.
-    // Al salir, onDispose limpia todo.
-    DisposableEffect(Unit) {
-        val renderScope = CoroutineScope(Dispatchers.Default + Job())
-        var renderJob: Job? = null
-        var eglDisplay: EGLDisplay? = null
-        var eglSurface: EGLSurface? = null
-        var eglContext: EGLContext? = null
-
-        val listener = object : TextureView.SurfaceTextureListener {
+    // Asignar listener ANTES del AndroidView para evitar condición de carrera
+    textureView.surfaceTextureListener = remember {
+        object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
                 eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
                 val version = IntArray(2)
@@ -93,7 +82,7 @@ fun ShaderCanvas(
                     while (isActive) {
                         renderer.onDrawFrame(null)
                         EGL14.eglSwapBuffers(eglDisplay, eglSurface)
-                        delay(16) // ~60fps
+                        delay(16)
                     }
                 }
             }
@@ -113,13 +102,15 @@ fun ShaderCanvas(
 
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
         }
+    }
 
-        textureView.surfaceTextureListener = listener
+    AndroidView(
+        factory = { textureView },
+        modifier = modifier
+    )
 
+    DisposableEffect(Unit) {
         onDispose {
-            // Safety net del senior: fuerza frame negro si la corrutina
-            // tarda 1 frame en cancelarse. El isExiting se chequea en
-            // ShaderRenderer.onDrawFrame antes de dibujar el shader.
             renderer.isExiting = true
             renderScope.cancel()
             textureView.surfaceTextureListener = null
