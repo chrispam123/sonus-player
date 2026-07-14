@@ -1,29 +1,34 @@
 package com.sonus.player.ui.visualizer
 
+import android.graphics.SurfaceTexture
+import android.opengl.EGL14
+import android.opengl.EGLConfig
+import android.opengl.EGLContext
+import android.opengl.EGLDisplay
+import android.opengl.EGLSurface
 import android.opengl.GLES20
-import android.opengl.GLSurfaceView
+import android.view.TextureView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
- * Compose wrapper for GLSurfaceView that renders the Living Canvas shader.
- * Uses RENDERMODE_WHEN_DIRTY + LaunchedEffect timer for full control over
- * the GL rendering lifecycle.
+ * Compose wrapper that renders the Living Canvas shader on a TextureView.
  *
- * FIX #5b (patched): en vez de confiar en un queueEvent{glClear} suelto
- * (que puede ejecutarse sin swapBuffers y no llegar nunca a pantalla),
- * usamos un flag `isExiting` que el propio Renderer.onDrawFrame() respeta.
- * Al salir:
- *   1. Ponemos renderer.isExiting = true
- *   2. Forzamos UN requestRender() final → ese render SÍ hace swapBuffers,
- *      pero dibuja negro en vez del shader (porque onDrawFrame lo consulta)
- *   3. onPause() detiene el hilo GL después de ese frame
+ * TextureView se renderiza como una View normal dentro de la jerarquía
+ * de Compose (no crea superficie GPU independiente como GLSurfaceView).
+ * Al desaparecer del árbol, desaparece instantáneamente — sin frames
+ * fantasma en SurfaceFlinger.
  */
 @Composable
 fun ShaderCanvas(
@@ -34,14 +39,7 @@ fun ShaderCanvas(
 ) {
     val context = LocalContext.current
     val renderer = remember { ShaderRenderer() }
-    val glSurfaceView = remember {
-        GLSurfaceView(context).apply {
-            setEGLContextClientVersion(2)
-            setRenderer(renderer)
-            // WHEN_DIRTY: solo renderiza cuando pedimos — no en loop automático.
-            renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
-        }
-    }
+    val textureView = remember { TextureView(context).apply { isOpaque = false } }
 
     // Actualizar datos del renderer en cada recomposición
     renderer.fftData = fftData
@@ -49,26 +47,82 @@ fun ShaderCanvas(
     renderer.currentMood = mood
 
     AndroidView(
-        factory = { glSurfaceView },
+        factory = { textureView },
         modifier = modifier
     )
 
-    // Timer que pide frames GL periódicamente (~60fps).
-    // Al salir del player, este LaunchedEffect se cancela automáticamente.
-    LaunchedEffect(glSurfaceView) {
-        while (true) {
-            glSurfaceView.requestRender()
-            delay(16) // ~60fps
-        }
-    }
+    // Configurar EGL + loop de render una sola vez, al entrar en composición.
+    // Al salir, onDispose limpia todo.
+    DisposableEffect(Unit) {
+        val renderScope = CoroutineScope(Dispatchers.Default + Job())
+        var renderJob: Job? = null
+        var eglDisplay: EGLDisplay? = null
+        var eglSurface: EGLSurface? = null
+        var eglContext: EGLContext? = null
 
-    // Al salir: marcamos isExiting y forzamos UN último render+swap
-    // que dibuja negro en vez del shader.
-    DisposableEffect(glSurfaceView) {
+        val listener = object : TextureView.SurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+                eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
+                val version = IntArray(2)
+                EGL14.eglInitialize(eglDisplay, version, 0, version, 0)
+
+                val configAttribs = intArrayOf(
+                    EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
+                    EGL14.EGL_RED_SIZE, 8,
+                    EGL14.EGL_GREEN_SIZE, 8,
+                    EGL14.EGL_BLUE_SIZE, 8,
+                    EGL14.EGL_ALPHA_SIZE, 8,
+                    EGL14.EGL_NONE
+                )
+                val configs = arrayOfNulls<EGLConfig>(1)
+                val numConfigs = IntArray(1)
+                EGL14.eglChooseConfig(eglDisplay, configAttribs, 0, configs, 0, 1, numConfigs, 0)
+
+                val contextAttribs = intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE)
+                eglContext = EGL14.eglCreateContext(eglDisplay, configs[0], EGL14.EGL_NO_CONTEXT, contextAttribs, 0)
+                eglSurface =
+                    EGL14.eglCreateWindowSurface(eglDisplay, configs[0], surface, intArrayOf(EGL14.EGL_NONE), 0)
+                EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)
+
+                GLES20.glClearColor(0.02f, 0.02f, 0.02f, 1f)
+
+                renderer.onSurfaceCreated(null, null)
+                renderer.onSurfaceChanged(null, width, height)
+
+                renderJob = renderScope.launch {
+                    while (isActive) {
+                        renderer.onDrawFrame(null)
+                        EGL14.eglSwapBuffers(eglDisplay, eglSurface)
+                        delay(16) // ~60fps
+                    }
+                }
+            }
+
+            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+                renderer.onSurfaceChanged(null, width, height)
+            }
+
+            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                renderJob?.cancel()
+                EGL14.eglMakeCurrent(eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
+                eglSurface?.let { EGL14.eglDestroySurface(eglDisplay, it) }
+                eglContext?.let { EGL14.eglDestroyContext(eglDisplay, it) }
+                eglDisplay?.let { EGL14.eglTerminate(it) }
+                return true
+            }
+
+            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+        }
+
+        textureView.surfaceTextureListener = listener
+
         onDispose {
+            // Safety net del senior: fuerza frame negro si la corrutina
+            // tarda 1 frame en cancelarse. El isExiting se chequea en
+            // ShaderRenderer.onDrawFrame antes de dibujar el shader.
             renderer.isExiting = true
-            glSurfaceView.requestRender() // fuerza el frame final (con swap real)
-            glSurfaceView.onPause()
+            renderScope.cancel()
+            textureView.surfaceTextureListener = null
         }
     }
 }
