@@ -22,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+//ahora si
 @Composable
 fun ShaderCanvas(
     fftData: FloatArray,
