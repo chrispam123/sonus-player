@@ -1,5 +1,6 @@
 package com.sonus.player.ui.visualizer
 
+import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -13,11 +14,16 @@ import kotlinx.coroutines.delay
 /**
  * Compose wrapper for GLSurfaceView that renders the Living Canvas shader.
  * Uses RENDERMODE_WHEN_DIRTY + LaunchedEffect timer for full control over
- * the GL rendering lifecycle. When the composable leaves composition:
- *   1. LaunchedEffect cancels → no more requestRender() calls
- *   2. queueEvent clears buffer to black
- *   3. onPause() stops the GL thread
- *   4. SurfaceFlinger receives the cleared frame → shader disappears instantly
+ * the GL rendering lifecycle.
+ *
+ * FIX #5b (patched): en vez de confiar en un queueEvent{glClear} suelto
+ * (que puede ejecutarse sin swapBuffers y no llegar nunca a pantalla),
+ * usamos un flag `isExiting` que el propio Renderer.onDrawFrame() respeta.
+ * Al salir:
+ *   1. Ponemos renderer.isExiting = true
+ *   2. Forzamos UN requestRender() final → ese render SÍ hace swapBuffers,
+ *      pero dibuja negro en vez del shader (porque onDrawFrame lo consulta)
+ *   3. onPause() detiene el hilo GL después de ese frame
  */
 @Composable
 fun ShaderCanvas(
@@ -28,13 +34,11 @@ fun ShaderCanvas(
 ) {
     val context = LocalContext.current
     val renderer = remember { ShaderRenderer() }
-
     val glSurfaceView = remember {
         GLSurfaceView(context).apply {
             setEGLContextClientVersion(2)
             setRenderer(renderer)
             // WHEN_DIRTY: solo renderiza cuando pedimos — no en loop automático.
-            // Esto nos da control total sobre cuándo se generan frames GL.
             renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
         }
     }
@@ -50,8 +54,7 @@ fun ShaderCanvas(
     )
 
     // Timer que pide frames GL periódicamente (~60fps).
-    // Al salir del player, este LaunchedEffect se cancela automáticamente
-    // → no más requestRender() → el hilo GL deja de producir frames.
+    // Al salir del player, este LaunchedEffect se cancela automáticamente.
     LaunchedEffect(glSurfaceView) {
         while (true) {
             glSurfaceView.requestRender()
@@ -59,15 +62,12 @@ fun ShaderCanvas(
         }
     }
 
-    // Al salir: sin requestRender activo, limpiamos y pausamos.
-    // El hilo GL recibe glClear, lo ejecuta, y como no hay requestRender
-    // pendiente, se pausa sin volver a dibujar el shader encima.
+    // Al salir: marcamos isExiting y forzamos UN último render+swap
+    // que dibuja negro en vez del shader.
     DisposableEffect(glSurfaceView) {
         onDispose {
-            glSurfaceView.queueEvent {
-                android.opengl.GLES20.glClearColor(0f, 0f, 0f, 1f)
-                android.opengl.GLES20.glClear(android.opengl.GLES20.GL_COLOR_BUFFER_BIT)
-            }
+            renderer.isExiting = true
+            glSurfaceView.requestRender() // fuerza el frame final (con swap real)
             glSurfaceView.onPause()
         }
     }
