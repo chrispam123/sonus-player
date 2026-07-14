@@ -1,7 +1,11 @@
 package com.sonus.player.ui.visualizer
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.opengl.GLUtils
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -35,6 +39,10 @@ class ShaderRenderer : GLSurfaceView.Renderer {
     @Volatile
     var isExiting: Boolean = false
 
+    // Textura de la imagen de Munari
+    private var munariBitmap: Bitmap? = null
+    private var munariTextureId: Int = 0
+
     private var program: Int = 0
     private var vertexBuffer: FloatBuffer? = null
 
@@ -45,6 +53,7 @@ class ShaderRenderer : GLSurfaceView.Renderer {
     private var uMidLocation: Int = 0
     private var uHighLocation: Int = 0
     private var uMoodLocation: Int = 0
+    private var uMunariTextureLocation: Int = 0
 
     private var width: Float = 1f
     private var height: Float = 1f
@@ -71,6 +80,9 @@ class ShaderRenderer : GLSurfaceView.Renderer {
         uniform float uMid;
         uniform float uHigh;
         uniform int uMood;
+
+        // Textura — imagen de Munari 1967
+        uniform sampler2D uMunariTexture;
 
         // Munari palette: monochrome (white/cream on black)
         vec3 light = vec3(0.85, 0.83, 0.78);  // Cream/paper tone
@@ -247,9 +259,19 @@ class ShaderRenderer : GLSurfaceView.Renderer {
             else if (uMood == 3) pattern = moodInterference(uv);
             else pattern = moodXerographic(uv);
 
-            // Final color: Cream/white on black (Munari xerographic palette)
-            float intensity = 0.4 + uAmplitude * 0.5;
-            vec3 color = mix(black, light, pattern * intensity);
+            // Samplear la imagen de Munari con distorsión por audio
+            float distort = uAmplitude * 0.015;
+            vec2 texUv = uv + vec2(
+                sin(uv.y * 10.0 + uTime * 0.3) * distort,
+                cos(uv.x * 8.0 + uTime * 0.2) * distort
+            );
+            vec4 texel = texture2D(uMunariTexture, texUv);
+
+            // Mezcla: la imagen es la base, el patrón procedural modula encima
+            float intensity = 0.35 + uAmplitude * 0.45;
+            vec3 baseColor = mix(black, light, texel.r * 0.7 + 0.3);
+            vec3 patternOverlay = mix(black, light, pattern) * intensity * 0.25;
+            vec3 color = baseColor + patternOverlay;
 
             gl_FragColor = vec4(color, 1.0);
         }
@@ -279,6 +301,10 @@ class ShaderRenderer : GLSurfaceView.Renderer {
         uMidLocation = GLES20.glGetUniformLocation(program, "uMid")
         uHighLocation = GLES20.glGetUniformLocation(program, "uHigh")
         uMoodLocation = GLES20.glGetUniformLocation(program, "uMood")
+        uMunariTextureLocation = GLES20.glGetUniformLocation(program, "uMunariTexture")
+
+        // Subir la imagen de Munari a la GPU como textura
+        loadTextureToGpu()
     }
 
     override fun onSurfaceChanged(gl: GL10?, w: Int, h: Int) {
@@ -315,6 +341,11 @@ class ShaderRenderer : GLSurfaceView.Renderer {
         GLES20.glUniform1f(uHighLocation, high)
         GLES20.glUniform1i(uMoodLocation, currentMood.ordinal)
 
+        // Vincular textura de Munari a la unidad 0
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, munariTextureId)
+        GLES20.glUniform1i(uMunariTextureLocation, 0)
+
         val positionHandle = GLES20.glGetAttribLocation(program, "aPosition")
         GLES20.glEnableVertexAttribArray(positionHandle)
         GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer)
@@ -327,5 +358,36 @@ class ShaderRenderer : GLSurfaceView.Renderer {
         GLES20.glShaderSource(shader, code)
         GLES20.glCompileShader(shader)
         return shader
+    }
+
+    /**
+     * Carga la imagen de Munari desde resources. Se llama desde ShaderCanvas
+     * (main thread). El bitmap se guarda y se sube a la GPU en onSurfaceCreated
+     * (hilo GL).
+     */
+    fun setTextureBitmap(context: Context, resourceId: Int) {
+        if (munariBitmap != null) return  // Ya cargada
+        munariBitmap = BitmapFactory.decodeResource(context.resources, resourceId)
+    }
+
+    /**
+     * Sube el bitmap de Munari a la GPU como textura GL.
+     * DEBE llamarse desde el hilo GL (dentro de onSurfaceCreated).
+     */
+    private fun loadTextureToGpu() {
+        val bitmap = munariBitmap ?: return
+        val textures = IntArray(1)
+        GLES20.glGenTextures(1, textures, 0)
+        munariTextureId = textures[0]
+
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, munariTextureId)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+
+        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
+        munariBitmap?.recycle()
+        munariBitmap = null  // Liberar memoria RAM, ya está en GPU
     }
 }
