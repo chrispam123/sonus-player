@@ -93,20 +93,28 @@ fun ShaderCanvas(
                     )
                     Log.d(TAG, "eglCreateWindowSurface: $eglSurface")
 
-                    val makeCurrentOk = EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)
-                    Log.d(TAG, "eglMakeCurrent: $makeCurrentOk")
-
-                    GLES20.glClearColor(0.02f, 0.02f, 0.02f, 1f)
-                    renderer.onSurfaceCreated(null, null)
-                    renderer.onSurfaceChanged(null, width, height)
-                    Log.d(TAG, "Renderer inicializado OK")
+                    // Capturar para la corrutina
+                    val display = eglDisplay
+                    val surf = eglSurface
+                    val ctx = eglContext
 
                     renderScope.launch {
+                        // eglMakeCurrent DEBE ejecutarse en el hilo que va a renderizar.
+                        // Si se llama en el main thread, las llamadas GL desde la
+                        // corrutina no tienen efecto.
+                        EGL14.eglMakeCurrent(display, surf, surf, ctx)
+                        Log.d(TAG, "eglMakeCurrent en hilo GL: OK")
+
+                        GLES20.glClearColor(0.02f, 0.02f, 0.02f, 1f)
+                        renderer.onSurfaceCreated(null, null)
+                        renderer.onSurfaceChanged(null, width, height)
+                        Log.d(TAG, "Renderer inicializado OK")
+
                         var frameCount = 0
                         Log.d(TAG, "Loop de render iniciado")
                         while (isActive) {
                             renderer.onDrawFrame(null)
-                            EGL14.eglSwapBuffers(eglDisplay, eglSurface)
+                            EGL14.eglSwapBuffers(display, surf)
                             frameCount++
                             if (frameCount % 60 == 0) {
                                 Log.d(TAG, "Render loop: $frameCount frames, amp=$amplitude")
