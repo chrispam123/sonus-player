@@ -25,6 +25,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import android.util.Log
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -76,7 +77,8 @@ fun SonusNavigation() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val isFullScreen = currentRoute == "lyrics" || currentRoute == "search" || currentRoute?.startsWith("playlist_detail") == true
+    val isFullScreen =
+        currentRoute == "lyrics" || currentRoute == "search" || currentRoute?.startsWith("playlist_detail") == true
 
     Scaffold(
         topBar = {
@@ -125,6 +127,7 @@ fun SonusNavigation() {
                             },
                             selected = currentRoute == item.route,
                             onClick = {
+                                Log.d("SonusNav", "NavBar click: ${item.label}")
                                 navController.navigate(item.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
@@ -210,7 +213,8 @@ fun SonusNavigation() {
                         )
                     }
                     composable("playlist_detail/{playlistId}") { backStackEntry ->
-                        val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: return@composable
+                        val playlistId =
+                            backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: return@composable
                         val playlistViewModel: PlaylistViewModel = hiltViewModel()
                         playlistViewModel.selectPlaylist(playlistId)
                         PlaylistDetailScreen(
@@ -249,7 +253,10 @@ fun SonusNavigation() {
                     isPlaying = playerState.isPlaying,
                     progress = progress,
                     onTogglePlayPause = { playerViewModel.togglePlayPause() },
-                    onClick = { navController.navigate("now_playing") }
+                    onClick = {
+                        Log.d("SonusNav", "MiniPlayer click")
+                        navController.navigate("now_playing")
+                    }
                 )
             }
         }
