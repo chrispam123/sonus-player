@@ -75,7 +75,6 @@ fun ShaderCanvas(
                         EGL14.EGL_RED_SIZE, 8,
                         EGL14.EGL_GREEN_SIZE, 8,
                         EGL14.EGL_BLUE_SIZE, 8,
-                        EGL14.EGL_ALPHA_SIZE, 8,
                         EGL14.EGL_NONE
                     )
                     val configs = arrayOfNulls<EGLConfig>(1)
@@ -144,7 +143,7 @@ fun ShaderCanvas(
     val textureView = remember {
         Log.d(TAG, "Creando TextureView + asignando listener")
         TextureView(context).apply {
-            isOpaque = false
+            isOpaque = true  // Shader no tiene transparencia
             surfaceTextureListener = listener
         }
     }
