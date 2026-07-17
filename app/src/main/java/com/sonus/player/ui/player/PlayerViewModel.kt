@@ -4,6 +4,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sonus.player.data.player.Media3PlayerController
+import com.sonus.player.data.repository.BackendRepositoryImpl
+import com.sonus.player.data.remote.sonus.MoodRequestDto
+import com.sonus.player.data.remote.sonus.TrackSummaryDto
 import com.sonus.player.domain.controller.PlayerController
 import com.sonus.player.domain.model.PlaybackProgress
 import com.sonus.player.domain.model.RepeatMode
@@ -33,7 +36,12 @@ data class PlayerUiState(
     val progress: PlaybackProgress = PlaybackProgress(0, 0, 0),
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
-    val error: String? = null
+    val error: String? = null,
+    // 🆕 Análisis de mood con IA (backend Sonus + DeepSeek)
+    val moodDescription: String? = null,      // "Pareces estar en un momento..."
+    val moodLabel: String? = null,             // "melancholy" | "energetic" | ...
+    val moodShaderSuggestion: com.sonus.player.ui.visualizer.ShaderRenderer.Mood? = null,
+    val moodIsAnalyzing: Boolean = false       // ¿Esperando respuesta del backend?
 )
 
 @HiltViewModel
@@ -41,12 +49,17 @@ class PlayerViewModel @Inject constructor(
     private val playerController: PlayerController,
     private val historyRepository: PlaybackHistoryRepository,
     private val preferencesRepository: PreferencesRepository,
-    private val musicRepository: MusicRepository
+    private val musicRepository: MusicRepository,
+    // 🆕 Backend Sonus: análisis de mood con DeepSeek IA
+    private val backendRepository: BackendRepositoryImpl
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "PlayerVM"
         private const val SAVE_DEBOUNCE_MS = 5000L
+
+        // 🆕 Timer de análisis de mood: cada 30 minutos
+        private const val MOOD_CHECK_INTERVAL_MS = 30 * 60 * 1000L
     }
 
     private val _uiState = MutableStateFlow(PlayerUiState())
@@ -67,6 +80,10 @@ class PlayerViewModel @Inject constructor(
     init {
         observePlayback()
         connectToService()
+        // 🆕 Iniciar timer de análisis de mood cada 30 minutos.
+        // Si han pasado ≥60 min desde el último análisis, envía las
+        // canciones recientes a DeepSeek para evaluar el estado de ánimo.
+        startMoodAnalysisTimer()
     }
 
     private fun connectToService() {
@@ -271,6 +288,102 @@ class PlayerViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Error restoring state: ${e.message}")
             }
+        }
+    }
+
+    // =========================================================
+    // 🆕 MOOD ANALYSIS — Análisis de estado de ánimo con IA
+    // =========================================================
+    // Cada 30 minutos, si hay ≥3 canciones en la última hora,
+    // las envía al backend. DeepSeek analiza el patrón y devuelve
+    // mood + sugerencia de shader + descripción.
+    // =========================================================
+
+    private fun startMoodAnalysisTimer() {
+        viewModelScope.launch {
+            while (true) {
+                delay(MOOD_CHECK_INTERVAL_MS)
+                requestMoodAnalysis()
+            }
+        }
+    }
+
+    /**
+     * Envía el historial de la última hora al backend para
+     * análisis de estado de ánimo con DeepSeek IA.
+     * Se puede llamar manualmente para forzar un análisis.
+     */
+    private fun requestMoodAnalysis() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Iniciando análisis de mood...")
+
+                // 1. Obtener historial reciente de Room
+                val recentHistory = historyRepository.getRecentHistory(50)
+                val historyList = recentHistory.first()
+                val oneHourAgo = System.currentTimeMillis() - 3600_000
+                val hourTracks = historyList.filter { it.playedAt > oneHourAgo }
+
+                if (hourTracks.size < 3) {
+                    Log.d(TAG, "Mood: insuficientes canciones (${hourTracks.size}), se necesitan ≥3")
+                    return@launch
+                }
+
+                Log.d(TAG, "Mood: enviando ${hourTracks.size} canciones al backend")
+
+                // 2. Convertir historial a DTO del backend
+                val request = MoodRequestDto(
+                    userId = "user_1",
+                    tracks = hourTracks.map { entry ->
+                        TrackSummaryDto(
+                            title = entry.track.title,
+                            artist = entry.track.artist,
+                            durationMs = entry.track.duration,
+                            playedAt = entry.playedAt
+                        )
+                    },
+                    periodStart = oneHourAgo,
+                    periodEnd = System.currentTimeMillis()
+                )
+
+                // 3. Enviar al backend (el Repository hace polling automático)
+                _uiState.value = _uiState.value.copy(moodIsAnalyzing = true)
+                val result = backendRepository.analyzeMood(request)
+
+                // 4. Actualizar UI con el resultado del análisis
+                if (result != null) {
+                    val shaderMood = parseMoodToShader(result.shaderMood)
+                    Log.d(TAG, "Mood detectado: ${result.mood}, shader=${result.shaderMood}")
+                    _uiState.value = _uiState.value.copy(
+                        moodIsAnalyzing = false,
+                        moodLabel = result.mood,
+                        moodDescription = result.description,
+                        moodShaderSuggestion = shaderMood
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(moodIsAnalyzing = false)
+                    Log.w(TAG, "Mood: análisis falló o timeout")
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en análisis de mood: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(moodIsAnalyzing = false)
+            }
+        }
+    }
+
+    /**
+     * Convierte el string de shader del backend al enum de ShaderRenderer.
+     * Si el backend sugiere "MOIRE_FLOW", el shader cambia automáticamente.
+     */
+    private fun parseMoodToShader(shaderMood: String?): com.sonus.player.ui.visualizer.ShaderRenderer.Mood? {
+        return when (shaderMood?.uppercase()) {
+            "MOIRE_FLOW" -> com.sonus.player.ui.visualizer.ShaderRenderer.Mood.MOIRE_FLOW
+            "RADIAL_WAVE" -> com.sonus.player.ui.visualizer.ShaderRenderer.Mood.RADIAL_WAVE
+            "DIAMOND_GRID" -> com.sonus.player.ui.visualizer.ShaderRenderer.Mood.DIAMOND_GRID
+            "INTERFERENCE" -> com.sonus.player.ui.visualizer.ShaderRenderer.Mood.INTERFERENCE
+            "XEROGRAPHIC" -> com.sonus.player.ui.visualizer.ShaderRenderer.Mood.XEROGRAPHIC
+            else -> null
         }
     }
 

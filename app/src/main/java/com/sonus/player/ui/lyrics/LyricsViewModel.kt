@@ -2,6 +2,7 @@ package com.sonus.player.ui.lyrics
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sonus.player.data.repository.BackendRepositoryImpl
 import com.sonus.player.domain.controller.PlayerController
 import com.sonus.player.domain.model.SyncedLine
 import com.sonus.player.domain.model.SyncedLyricsResult
@@ -28,7 +29,10 @@ data class LyricsUiState(
 @HiltViewModel
 class LyricsViewModel @Inject constructor(
     private val lyricsRepository: LyricsRepository,
-    private val playerController: PlayerController
+    private val playerController: PlayerController,
+    // 🆕 Backend Sonus: último recurso cuando LRCLIB y Genius no tienen la letra.
+    // Usa DeepSeek IA para generar letras de cualquier canción (lento pero universal).
+    private val backendRepository: BackendRepositoryImpl
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LyricsUiState())
@@ -87,6 +91,20 @@ class LyricsViewModel @Inject constructor(
                     plainText = plainResult.text,
                     isSynced = false,
                     source = "Genius"
+                )
+                return@launch
+            }
+
+            // 🆕 Último recurso: backend Sonus con DeepSeek IA.
+            // Solo se usa si LRCLIB y Genius no encontraron nada.
+            // La IA puede generar letras de prácticamente cualquier canción,
+            // pero tarda entre 5 y 60 segundos (polling cada 2s).
+            val aiLyrics = backendRepository.fetchLyrics(track.artist, track.title)
+            if (aiLyrics != null) {
+                _uiState.value = LyricsUiState(
+                    plainText = aiLyrics,
+                    isSynced = false,
+                    source = "SONUS IA"
                 )
                 return@launch
             }
