@@ -2,8 +2,8 @@ package com.sonus.receptor
 
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.RequestHandler
-import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
-import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
+import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent
+import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse
 import com.sonus.receptor.service.CacheService
 import com.sonus.receptor.service.QueueService
 import com.sonus.shared.models.LyricsRequest
@@ -35,7 +35,7 @@ import java.util.UUID
 //   4. Devolver respuesta inmediata (< 200ms)
 // ============================================================
 
-class Handler : RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
     // --------------------------------------------------------
     // Servicios inyectados
@@ -61,31 +61,30 @@ class Handler : RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyRespo
      * @return Respuesta HTTP con statusCode y body JSON
      */
     override fun handleRequest(
-        input: APIGatewayProxyRequestEvent,
+        input: APIGatewayV2HTTPEvent,
         context: Context
-    ): APIGatewayProxyResponseEvent {
+    ): APIGatewayV2HTTPResponse {
 
-        // Log del request para debugging en CloudWatch
-        context.logger.log("Receptor: ${input.httpMethod} ${input.path}")
+        // HTTP API v2: method y path están en requestContext.http
+        val method = input.requestContext.http.method
+        val path = input.requestContext.http.path
+        context.logger.log("Receptor: $method $path")
 
         return try {
-            // Enrutar según el método HTTP y el path
             when {
-                input.httpMethod == "POST" && input.path == "/lyrics" ->
+                method == "POST" && path == "/lyrics" ->
                     handleLyricsRequest(input, context)
 
-                input.httpMethod == "POST" && input.path == "/mood" ->
+                method == "POST" && path == "/mood" ->
                     handleMoodRequest(input, context)
 
-                input.httpMethod == "GET" && input.path.startsWith("/result/") ->
+                method == "GET" && path.startsWith("/result/") ->
                     handleResultQuery(input, context)
 
                 else ->
-                    // Ruta no encontrada
-                    errorResponse(404, "Route not found: ${input.httpMethod} ${input.path}")
+                    errorResponse(404, "Route not found: $method $path")
             }
         } catch (e: Exception) {
-            // Error no manejado — loguear y devolver 500
             context.logger.log("Receptor ERROR: ${e.message}")
             errorResponse(500, "Internal server error: ${e.message}")
         }
@@ -101,9 +100,9 @@ class Handler : RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyRespo
     //   3b. Si NO → generar requestId → encolar en SQS → responder 202
     // ============================================================
     private fun handleLyricsRequest(
-        input: APIGatewayProxyRequestEvent,
+        input: APIGatewayV2HTTPEvent,
         context: Context
-    ): APIGatewayProxyResponseEvent {
+    ): APIGatewayV2HTTPResponse {
 
         // Parsear el body JSON
         val request = parseBody<LyricsRequest>(input.body)
@@ -159,9 +158,9 @@ class Handler : RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyRespo
     // La app Android llama esto cada hora con el historial.
     // ============================================================
     private fun handleMoodRequest(
-        input: APIGatewayProxyRequestEvent,
+        input: APIGatewayV2HTTPEvent,
         context: Context
-    ): APIGatewayProxyResponseEvent {
+    ): APIGatewayV2HTTPResponse {
 
         val request = parseBody<MoodRequest>(input.body)
             ?: return errorResponse(400, "Invalid request body. Expected: { userId, tracks, periodStart, periodEnd }")
@@ -191,12 +190,12 @@ class Handler : RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyRespo
     // Devuelve el resultado cuando status == COMPLETED.
     // ============================================================
     private fun handleResultQuery(
-        input: APIGatewayProxyRequestEvent,
+        input: APIGatewayV2HTTPEvent,
         context: Context
-    ): APIGatewayProxyResponseEvent {
+    ): APIGatewayV2HTTPResponse {
 
-        // Extraer el requestId del path (/result/abc-123 → abc-123)
-        val requestId = input.path.removePrefix("/result/")
+        // HTTP API v2: path en requestContext.http.path
+        val requestId = input.requestContext.http.path.removePrefix("/result/")
 
         if (requestId.isBlank()) {
             return errorResponse(400, "Missing requestId in path")
@@ -260,17 +259,21 @@ class Handler : RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyRespo
     private fun buildMoodQueueMessage(requestId: String, request: MoodRequest): String =
         """{"requestId": "$requestId", "payload": ${json.encodeToString(request)}}"""
 
-    /** Construye una respuesta HTTP exitosa */
-    private fun successResponse(statusCode: Int, body: String) =
-        APIGatewayProxyResponseEvent()
-            .withStatusCode(statusCode)
-            .withBody(body)
-            .withHeaders(mapOf("Content-Type" to "application/json"))
+    /** Construye una respuesta HTTP exitosa (v2) */
+    private fun successResponse(statusCode: Int, body: String): APIGatewayV2HTTPResponse {
+        val resp = APIGatewayV2HTTPResponse()
+        resp.statusCode = statusCode
+        resp.body = body
+        resp.headers = mapOf("Content-Type" to "application/json")
+        return resp
+    }
 
-    /** Construye una respuesta HTTP de error */
-    private fun errorResponse(statusCode: Int, message: String) =
-        APIGatewayProxyResponseEvent()
-            .withStatusCode(statusCode)
-            .withBody("""{"error": "$message"}""")
-            .withHeaders(mapOf("Content-Type" to "application/json"))
+    /** Construye una respuesta HTTP de error (v2) */
+    private fun errorResponse(statusCode: Int, message: String): APIGatewayV2HTTPResponse {
+        val resp = APIGatewayV2HTTPResponse()
+        resp.statusCode = statusCode
+        resp.body = """{"error": "$message"}"""
+        resp.headers = mapOf("Content-Type" to "application/json")
+        return resp
+    }
 }
