@@ -75,12 +75,13 @@ fun NowPlayingScreen(
         // Solo visible si DeepSeek analizó el mood del usuario.
         val desc = uiState.moodDescription
         if (desc != null && desc.isNotBlank()) {
+            val moodColor = androidx.compose.ui.graphics.Color(0xFFD4A0A0)  // Dusty Rose — melancólico
             Text(
                 text = desc,
                 style = MaterialTheme.typography.labelSmall,
-                color = CyberLime.copy(alpha = 0.7f),
+                color = moodColor,
                 textAlign = TextAlign.Center,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -90,7 +91,7 @@ fun NowPlayingScreen(
                 Text(
                     text = "🔗 ${links.first()}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = SoftGray.copy(alpha = 0.5f),
+                    color = moodColor.copy(alpha = 0.5f),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -117,7 +118,7 @@ fun NowPlayingScreen(
         // Living Canvas area with cover art on top (fades after 5 seconds)
         Box(
             modifier = Modifier
-                .size(280.dp),
+                .size(240.dp),
             contentAlignment = Alignment.Center
         ) {
             // Layer 1: GLSL Shader Canvas (background, full 280dp)
