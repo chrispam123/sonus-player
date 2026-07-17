@@ -65,7 +65,7 @@ class DeepSeekService {
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You are a music lyrics database. When asked for song lyrics, provide the complete and accurate lyrics without any additional commentary, headers, or explanations. Only output the lyrics text."
+                        "content": "You are a music lyrics database. When asked for song lyrics, search the internet to provide the complete and accurate lyrics without any additional commentary, headers, or explanations. Only output the lyrics text."
                     },
                     {
                         "role": "user",
@@ -73,7 +73,8 @@ class DeepSeekService {
                     }
                 ],
                 "temperature": 0.3,
-                "max_tokens": 2000
+                "max_tokens": 2000,
+                "enable_search": true
             }
         """.trimIndent()
 
@@ -106,7 +107,7 @@ class DeepSeekService {
      */
     private fun buildPrompt(artist: String, title: String): String =
         "Please provide the complete lyrics for the song '$title' by $artist. " +
-        "Output only the lyrics without any introduction, explanation, or commentary."
+                "Output only the lyrics without any introduction, explanation, or commentary."
 
     /**
      * Extrae el contenido de texto de la respuesta JSON de DeepSeek.

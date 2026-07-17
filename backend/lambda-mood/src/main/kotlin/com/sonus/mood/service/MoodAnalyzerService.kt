@@ -60,7 +60,7 @@ class MoodAnalyzerService {
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You are a music psychologist that analyzes listening patterns to determine emotional states. Always respond with valid JSON only, no other text."
+                        "content": "You are a music psychologist that analyzes listening patterns to determine emotional states. Search the internet for artist and song information to better understand the context. Always respond with valid JSON only, no other text."
                     },
                     {
                         "role": "user",
@@ -68,7 +68,8 @@ class MoodAnalyzerService {
                     }
                 ],
                 "temperature": 0.7,
-                "max_tokens": 800
+                "max_tokens": 800,
+                "enable_search": true
             }
         """.trimIndent()
 
@@ -123,9 +124,9 @@ class MoodAnalyzerService {
 
         return """
             Analyze the emotional state of someone who listened to these songs in the last hour:
-            
+
             $tracksList
-            
+
             Based on this listening pattern, respond with ONLY a JSON object (no markdown, no explanations):
             {
                 "mood": "one word emotional state in English (melancholy/energetic/calm/nostalgic/euphoric/tense/focused/romantic)",
@@ -137,7 +138,7 @@ class MoodAnalyzerService {
                     {"artist": "Artist Name 3", "songTitle": "Song Title 3", "url": "https://www.youtube.com/results?search_query=Artist+Name+3+Song+Title+3"}
                 ]
             }
-            
+
             Shader mood guide: $shaderMoods
         """.trimIndent()
     }
