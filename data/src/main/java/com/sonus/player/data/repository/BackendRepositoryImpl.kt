@@ -1,6 +1,7 @@
 package com.sonus.player.data.repository
 
 import android.util.Log
+import com.google.gson.Gson
 import com.sonus.player.data.remote.sonus.LyricsRequestDto
 import com.sonus.player.data.remote.sonus.LyricsResponseDto
 import com.sonus.player.data.remote.sonus.MoodRequestDto
@@ -23,11 +24,12 @@ class BackendRepositoryImpl @Inject constructor(
 ) {
     companion object {
         private const val TAG = "BackendRepo"
-
-        // Límite de polling: 30 intentos × 2s = 60s máximo de espera
         private const val MAX_POLLS = 30
         private const val POLL_DELAY_MS = 2000L
     }
+
+    // Gson para parsear el JSON del resultado del polling
+    private val gson = Gson()
 
     // ============================================================
     // FETCH LYRICS — Solicita letra y espera resultado con polling
@@ -90,14 +92,13 @@ class BackendRepositoryImpl @Inject constructor(
             // 2. Si ya está listo → respuesta inmediata
             if (response.status == "COMPLETED") return response
 
-            // 3. Polling hasta que DeepSeek termine el análisis
+            // 3. Polling hasta que DeepSeek termine el análisis.
+            // El resultado en DynamoDB es un JSON con los campos:
+            // mood, shaderMood, description, youtubeLinks
             val resultJson = pollForResult(response.requestId) { it }
             if (resultJson != null) {
-                // Devolver la respuesta original con datos del resultado
-                response.copy(
-                    status = "COMPLETED",
-                    mood = "analyzed"  // Placeholder — en bloque 5 parsearemos el JSON real
-                )
+                // Parsear el JSON del resultado de DynamoDB a MoodResponseDto
+                gson.fromJson(resultJson, MoodResponseDto::class.java)
             } else null
 
         } catch (e: Exception) {
