@@ -41,7 +41,8 @@ data class PlayerUiState(
     val moodDescription: String? = null,      // "Pareces estar en un momento..."
     val moodLabel: String? = null,             // "melancholy" | "energetic" | ...
     val moodShaderSuggestion: com.sonus.player.ui.visualizer.ShaderRenderer.Mood? = null,
-    val moodIsAnalyzing: Boolean = false       // ¿Esperando respuesta del backend?
+    val moodIsAnalyzing: Boolean = false,       // ¿Esperando respuesta del backend?
+    val moodYoutubeLinks: List<String> = emptyList()  // 🆕 Links sugeridos (artist — title)
 )
 
 @HiltViewModel
@@ -353,12 +354,17 @@ class PlayerViewModel @Inject constructor(
                 // 4. Actualizar UI con el resultado del análisis
                 if (result != null) {
                     val shaderMood = parseMoodToShader(result.shaderMood)
-                    Log.d(TAG, "Mood detectado: ${result.mood}, shader=${result.shaderMood}")
+                    // 🆕 Extraer links como "Artist — Title" para mostrar en UI
+                    val links = result.youtubeLinks?.map {
+                        "${it.artist} — ${it.songTitle}"
+                    } ?: emptyList()
+                    Log.d(TAG, "Mood detectado: ${result.mood}, shader=${result.shaderMood}, links=${links.size}")
                     _uiState.value = _uiState.value.copy(
                         moodIsAnalyzing = false,
                         moodLabel = result.mood,
                         moodDescription = result.description,
-                        moodShaderSuggestion = shaderMood
+                        moodShaderSuggestion = shaderMood,
+                        moodYoutubeLinks = links
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(moodIsAnalyzing = false)
