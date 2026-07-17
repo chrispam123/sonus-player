@@ -71,6 +71,34 @@ fun NowPlayingScreen(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // 🆕 Mood description — arriba de los botones, bajo la topbar.
+        // Solo visible si DeepSeek analizó el mood del usuario.
+        val desc = uiState.moodDescription
+        if (desc != null && desc.isNotBlank()) {
+            Text(
+                text = desc,
+                style = MaterialTheme.typography.labelSmall,
+                color = CyberLime.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+            // 🆕 Links sugeridos por DeepSeek según el mood.
+            val links = uiState.moodYoutubeLinks
+            if (links.isNotEmpty()) {
+                Text(
+                    text = "🔗 ${links.first()}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SoftGray.copy(alpha = 0.5f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
         // Action buttons above cover art (between SONUS topbar and cover)
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -165,20 +193,6 @@ fun NowPlayingScreen(
             textAlign = TextAlign.Center,
             letterSpacing = 2.sp
         )
-
-        // 🆕 Mood description — solo visible si DeepSeek analizó el mood
-        val desc = uiState.moodDescription
-        if (desc != null && desc.isNotBlank()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = desc,
-                style = MaterialTheme.typography.bodySmall,
-                color = CyberLime.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -285,21 +299,6 @@ fun NowPlayingScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        // 🆕 Links sugeridos por DeepSeek según el mood del usuario.
-        // Solo visible si el análisis de mood devolvió sugerencias.
-        val links = uiState.moodYoutubeLinks
-        if (links.isNotEmpty()) {
-            Text(
-                text = "🔗 ${links.first()}",
-                style = MaterialTheme.typography.labelSmall,
-                color = SoftGray.copy(alpha = 0.5f),
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
     }
 
     // Add to playlist dialog
