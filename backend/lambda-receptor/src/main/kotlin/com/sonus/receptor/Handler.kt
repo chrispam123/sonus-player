@@ -66,8 +66,12 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
     ): APIGatewayV2HTTPResponse {
 
         // HTTP API v2: method y path están en requestContext.http
+        // El path incluye el stage (/develop/lyrics). Lo limpiamos.
         val method = input.requestContext.http.method
-        val path = input.requestContext.http.path
+        val rawPath = input.requestContext.http.path
+        val stage = input.requestContext.stage
+        // Quitar el prefijo del stage: /develop/lyrics → /lyrics
+        val path = if (stage != null) rawPath.removePrefix("/$stage") else rawPath
         context.logger.log("Receptor: $method $path")
 
         return try {
