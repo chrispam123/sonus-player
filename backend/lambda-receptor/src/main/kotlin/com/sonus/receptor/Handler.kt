@@ -198,8 +198,12 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
         context: Context
     ): APIGatewayV2HTTPResponse {
 
-        // HTTP API v2: path en requestContext.http.path
-        val requestId = input.requestContext.http.path.removePrefix("/result/")
+        // HTTP API v2: el path incluye el stage (/develop/result/xyz).
+        // Quitamos el stage primero, luego extraemos el requestId.
+        val stage = input.requestContext.stage
+        var rawPath = input.requestContext.http.path
+        if (stage != null) rawPath = rawPath.removePrefix("/$stage")
+        val requestId = rawPath.removePrefix("/result/")
 
         if (requestId.isBlank()) {
             return errorResponse(400, "Missing requestId in path")
