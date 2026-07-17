@@ -93,8 +93,10 @@ fun NowPlayingScreen(
             contentAlignment = Alignment.Center
         ) {
             // Layer 1: GLSL Shader Canvas (background, full 280dp)
-            val moods = com.sonus.player.ui.visualizer.ShaderRenderer.Mood.entries
-            val currentMood = remember { moods.random() }
+            // 🆕 El mood viene del análisis de DeepSeek cada 30 min.
+            // Si no hay mood aún, usa XEROGRAPHIC por defecto.
+            val currentMood = uiState.moodShaderSuggestion
+                ?: com.sonus.player.ui.visualizer.ShaderRenderer.Mood.XEROGRAPHIC
 
             com.sonus.player.ui.visualizer.ShaderCanvas(
                 fftData = fftData,
@@ -163,6 +165,20 @@ fun NowPlayingScreen(
             textAlign = TextAlign.Center,
             letterSpacing = 2.sp
         )
+
+        // 🆕 Mood description — solo visible si DeepSeek analizó el mood
+        val desc = uiState.moodDescription
+        if (desc != null && desc.isNotBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = desc,
+                style = MaterialTheme.typography.bodySmall,
+                color = CyberLime.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -269,6 +285,21 @@ fun NowPlayingScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // 🆕 Links sugeridos por DeepSeek según el mood del usuario.
+        // Solo visible si el análisis de mood devolvió sugerencias.
+        val links = uiState.moodYoutubeLinks
+        if (links.isNotEmpty()) {
+            Text(
+                text = "🔗 ${links.first()}",
+                style = MaterialTheme.typography.labelSmall,
+                color = SoftGray.copy(alpha = 0.5f),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     // Add to playlist dialog
