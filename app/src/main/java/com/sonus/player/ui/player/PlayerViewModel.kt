@@ -379,6 +379,9 @@ class PlayerViewModel @Inject constructor(
                     } else {
                         Log.d(TAG, "🔮 Mismo mood que antes, no se muestra")
                     }
+                    // 🆕 Limpiar historial tras cada análisis exitoso.
+                    // Así el próximo solo envía canciones nuevas, no acumula repetidas.
+                    historyRepository.clearHistory()
                 } else {
                     _uiState.value = _uiState.value.copy(moodIsAnalyzing = false)
                     Log.w(TAG, "Mood: análisis falló o timeout")
