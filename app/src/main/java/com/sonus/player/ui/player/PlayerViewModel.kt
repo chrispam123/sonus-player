@@ -42,7 +42,8 @@ data class PlayerUiState(
     val moodLabel: String? = null,             // "melancholy" | "energetic" | ...
     val moodShaderSuggestion: com.sonus.player.ui.visualizer.ShaderRenderer.Mood? = null,
     val moodIsAnalyzing: Boolean = false,       // ¿Esperando respuesta del backend?
-    val moodYoutubeLinks: List<String> = emptyList()  // 🆕 Links sugeridos (artist — title)
+    val moodYoutubeLinks: List<String> = emptyList(),  // 🆕 Links sugeridos
+    val moodViewed: Boolean = false  // 🆕 🔮 ya visto. Se resetea si el mood cambia.
 )
 
 @HiltViewModel
@@ -72,6 +73,10 @@ class PlayerViewModel @Inject constructor(
 
     private var lastTrackedTrackId: Long = -1
     private var saveJob: Job? = null
+
+    // 🆕 Último mood mostrado al usuario. Si el nuevo análisis coincide,
+    // no se muestra el 🔮 (evita repetir el mismo mood).
+    private var lastShownMoodLabel: String? = null
 
     // Audio Visualizer for Living Canvas
     private val audioVisualizer = AudioVisualizer()
@@ -359,13 +364,21 @@ class PlayerViewModel @Inject constructor(
                         "${it.artist} — ${it.songTitle}"
                     } ?: emptyList()
                     Log.d(TAG, "Mood detectado: ${result.mood}, shader=${result.shaderMood}, links=${links.size}")
+                    // 🆕 Solo mostrar el 🔮 si el mood es NUEVO (distinto al último visto)
+                    val isNewMood = result.mood != lastShownMoodLabel
                     _uiState.value = _uiState.value.copy(
                         moodIsAnalyzing = false,
                         moodLabel = result.mood,
                         moodDescription = result.description,
                         moodShaderSuggestion = shaderMood,
-                        moodYoutubeLinks = links
+                        moodYoutubeLinks = links,
+                        moodViewed = !isNewMood  // false si es nuevo → 🔮 visible
                     )
+                    if (isNewMood) {
+                        Log.d(TAG, "🔮 Nuevo mood disponible: ${result.mood}")
+                    } else {
+                        Log.d(TAG, "🔮 Mismo mood que antes, no se muestra")
+                    }
                 } else {
                     _uiState.value = _uiState.value.copy(moodIsAnalyzing = false)
                     Log.w(TAG, "Mood: análisis falló o timeout")
@@ -391,6 +404,15 @@ class PlayerViewModel @Inject constructor(
             "XEROGRAPHIC" -> com.sonus.player.ui.visualizer.ShaderRenderer.Mood.XEROGRAPHIC
             else -> null
         }
+    }
+
+    /**
+     * 🆕 Marca el mood actual como visto. El 🔮 desaparece hasta que
+     * llegue un nuevo mood distinto al actual.
+     */
+    fun markMoodViewed() {
+        lastShownMoodLabel = _uiState.value.moodLabel
+        _uiState.value = _uiState.value.copy(moodViewed = true)
     }
 
     // =========================================================
