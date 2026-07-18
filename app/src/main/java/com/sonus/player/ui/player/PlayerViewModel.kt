@@ -328,7 +328,9 @@ class PlayerViewModel @Inject constructor(
                 val recentHistory = historyRepository.getRecentHistory(50)
                 val historyList = recentHistory.first()
                 val oneHourAgo = System.currentTimeMillis() - 3600_000
+                Log.d(TAG, "Mood: getRecentHistory devolvió ${historyList.size} entradas totales")
                 val hourTracks = historyList.filter { it.playedAt > oneHourAgo }
+                Log.d(TAG, "Mood: ${hourTracks.size} en la última hora (${historyList.size} totales)")
 
                 if (hourTracks.size < 3) {
                     Log.d(TAG, "Mood: insuficientes canciones (${hourTracks.size}), se necesitan ≥3")
