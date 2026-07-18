@@ -60,8 +60,8 @@ class PlayerViewModel @Inject constructor(
         private const val TAG = "PlayerVM"
         private const val SAVE_DEBOUNCE_MS = 5000L
 
-        // 🆕 Timer de análisis de mood: cada 5 minutos.
-        private const val MOOD_CHECK_INTERVAL_MS = 60_000L  // 1 min para pruebas
+        // 🆕 Timer de análisis de mood: cada 15 minutos.
+        private const val MOOD_CHECK_INTERVAL_MS = 15 * 60 * 1000L
     }
 
     private val _uiState = MutableStateFlow(PlayerUiState())
