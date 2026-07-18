@@ -79,6 +79,7 @@ fun SonusNavigation() {
 
     val isFullScreen =
         currentRoute == "lyrics" || currentRoute == "search" || currentRoute?.startsWith("playlist_detail") == true
+                || currentRoute == "mood_detail"  // 🆕 Pantalla completa de mood
 
     Scaffold(
         topBar = {
@@ -186,7 +187,8 @@ fun SonusNavigation() {
                             playlists = playlistState.playlists,
                             onAddToPlaylist = { trackId, playlistId ->
                                 playlistViewModel.addTrackToPlaylist(playlistId, trackId)
-                            }
+                            },
+                            onMoodClick = { navController.navigate("mood_detail") }  // 🆕
                         )
                     }
                     composable("lyrics") {
@@ -239,6 +241,16 @@ fun SonusNavigation() {
                     composable("settings") {
                         val settingsViewModel: SettingsViewModel = hiltViewModel()
                         SettingsScreen(viewModel = settingsViewModel)
+                    }
+                    // 🆕 Pantalla de detalle del mood — se abre al tocar el círculo glow
+                    composable("mood_detail") {
+                        val moodState by playerViewModel.uiState.collectAsState()
+                        com.sonus.player.ui.player.MoodDetailScreen(
+                            moodLabel = moodState.moodLabel,
+                            moodDescription = moodState.moodDescription,
+                            moodLinks = moodState.moodYoutubeLinks,
+                            onClose = { navController.popBackStack() }
+                        )
                     }
                 }
             }

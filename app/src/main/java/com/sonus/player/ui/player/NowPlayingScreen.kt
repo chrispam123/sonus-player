@@ -1,6 +1,11 @@
 package com.sonus.player.ui.player
 
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -37,6 +43,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,7 +65,8 @@ fun NowPlayingScreen(
     viewModel: PlayerViewModel,
     onLyricsClick: () -> Unit = {},
     playlists: List<Playlist> = emptyList(),
-    onAddToPlaylist: (trackId: Long, playlistId: Long) -> Unit = { _, _ -> }
+    onAddToPlaylist: (trackId: Long, playlistId: Long) -> Unit = { _, _ -> },
+    onMoodClick: () -> Unit = {}  // 🆕 Abre MoodDetailScreen al tocar el círculo
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val track = uiState.currentTrack
@@ -71,31 +82,38 @@ fun NowPlayingScreen(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🆕 Mood description — arriba de los botones, bajo la topbar.
-        // Solo visible si DeepSeek analizó el mood del usuario.
-        val desc = uiState.moodDescription
-        if (desc != null && desc.isNotBlank()) {
-            val moodColor = androidx.compose.ui.graphics.Color(0xFFD4A0A0)  // Dusty Rose — melancólico
-            Text(
-                text = desc,
-                style = MaterialTheme.typography.labelSmall,
-                color = moodColor,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth()
+        // 🆕 GlowCircle animado — indica que hay un análisis de mood disponible.
+        // Al tocar abre MoodDetailScreen con descripción, links y fondo de color.
+        val moodDesc = uiState.moodDescription
+        if (moodDesc != null && moodDesc.isNotBlank()) {
+            val moodColor = moodCircleColor(uiState.moodLabel)
+            val infiniteTransition = rememberInfiniteTransition(label = "glow")
+            val pulse by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.2f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1500),
+                    repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                ),
+                label = "pulse"
             )
-            // 🆕 Links sugeridos por DeepSeek según el mood.
-            val links = uiState.moodYoutubeLinks
-            if (links.isNotEmpty()) {
-                Text(
-                    text = "🔗 ${links.first()}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = moodColor.copy(alpha = 0.5f),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth()
+
+            androidx.compose.foundation.Canvas(
+                modifier = Modifier
+                    .size(40.dp, 40.dp)
+                    .clip(CircleShape)
+                    .clickable { onMoodClick() }
+            ) {
+                val center = Offset(size.width / 2, size.height / 2)
+                val radius = size.minDimension / 2 * pulse
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(moodColor, moodColor.copy(alpha = 0f)),
+                        center = center,
+                        radius = radius
+                    ),
+                    radius = radius,
+                    center = center
                 )
             }
         }
@@ -341,4 +359,20 @@ private fun formatDuration(ms: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "%02d:%02d".format(minutes, seconds)
+}
+
+// 🎨 Color del círculo glow según el mood detectado
+private fun moodCircleColor(moodLabel: String?): Color = when (moodLabel) {
+    "calm" -> Color(0xFFF4C2C2)       // Rosa pastel
+    "romantic" -> Color(0xFFF4C2C2)
+    "nostalgic" -> Color(0xFFF4C2C2)
+    "energetic" -> Color(0xFFFFD700)  // Amarillo brillante
+    "euphoric" -> Color(0xFFFFD700)
+    "melancholy" -> Color(0xFFC4B5FD) // Lavanda
+    "sad" -> Color(0xFFC4B5FD)
+    "happy" -> Color(0xFFFF6B9D)      // Rosa chicle
+    "joyful" -> Color(0xFFFF6B9D)
+    "focused" -> Color(0xFF98FB98)    // Verde menta
+    "tense" -> Color(0xFF98FB98)
+    else -> Color(0xFFD4A0A0)          // Dusty Rose (fallback)
 }
