@@ -98,7 +98,12 @@ class BackendRepositoryImpl @Inject constructor(
             val resultJson = pollForResult(response.requestId) { it }
             if (resultJson != null) {
                 // Parsear el JSON del resultado de DynamoDB a MoodResponseDto
-                gson.fromJson(resultJson, MoodResponseDto::class.java)
+                val parsed = gson.fromJson(resultJson, MoodResponseDto::class.java)
+                Log.d(
+                    TAG,
+                    "Mood parseado: mood=${parsed.mood}, shader=${parsed.shaderMood}, links=${parsed.youtubeLinks?.size ?: 0}"
+                )
+                parsed
             } else null
 
         } catch (e: Exception) {
