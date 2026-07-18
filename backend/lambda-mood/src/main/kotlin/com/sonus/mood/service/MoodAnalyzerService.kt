@@ -7,6 +7,7 @@ import com.sonus.shared.models.YoutubeLink
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
@@ -149,21 +150,15 @@ class MoodAnalyzerService {
      */
     private fun parseMoodResponse(deepSeekResponse: String, request: MoodRequest): MoodResponse {
         println("DeepSeek raw response: $deepSeekResponse")
-        // Extraer el content de la respuesta de DeepSeek
-        val contentStart = deepSeekResponse.indexOf("\"content\":\"") + 11
-        val rawContent = if (contentStart > 10) {
-            deepSeekResponse.substring(contentStart)
-                .substringBefore("\"}")
-                .replace("\\n", "")
-                .replace("\\\"", "\"")
-                .trim()
-        } else {
-            throw Exception("Cannot extract content from DeepSeek response")
-        }
 
-        // Parsear el JSON del mood
         return try {
-            val moodJson = json.parseToJsonElement(rawContent).jsonObject
+            // Parsear la respuesta completa de DeepSeek como JSON
+            val responseJson = json.parseToJsonElement(deepSeekResponse).jsonObject
+            // Extraer choices[0].message.content (es el JSON del mood como string)
+            val choicesArray = responseJson["choices"]!!.jsonArray
+            val contentStr = choicesArray[0].jsonObject["message"]!!.jsonObject["content"]!!.jsonPrimitive.content
+            // Parsear el content como el objeto MoodResponse
+            val moodJson = json.parseToJsonElement(contentStr).jsonObject
 
             val youtubeLinks = moodJson["youtubeLinks"]?.let { linksElement ->
                 try {
@@ -172,12 +167,13 @@ class MoodAnalyzerService {
                         linksElement
                     )
                 } catch (e: Exception) {
+                    println("Error parseando youtubeLinks: ${e.message}")
                     emptyList()
                 }
             } ?: emptyList()
 
             MoodResponse(
-                requestId = "",  // Se asigna en el Handler
+                requestId = "",
                 status = RequestStatus.COMPLETED,
                 mood = moodJson["mood"]?.jsonPrimitive?.content,
                 shaderMood = moodJson["shaderMood"]?.jsonPrimitive?.content,
@@ -185,7 +181,7 @@ class MoodAnalyzerService {
                 youtubeLinks = youtubeLinks
             )
         } catch (e: Exception) {
-            // Si el parsing falla, devolver un mood genérico
+            println("Error parseando respuesta de DeepSeek: ${e.message}")
             MoodResponse(
                 requestId = "",
                 status = RequestStatus.COMPLETED,
