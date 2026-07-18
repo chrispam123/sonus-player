@@ -82,10 +82,10 @@ fun NowPlayingScreen(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🆕 GlowCircle animado — indica que hay un análisis de mood disponible.
-        // Al tocar abre MoodDetailScreen con descripción, links y fondo de color.
+        // 🆕 GlowCircle animado — indica que hay un mood NUEVO disponible.
+        // Desaparece al tocar, reaparece solo si el próximo análisis es distinto.
         val moodDesc = uiState.moodDescription
-        if (moodDesc != null && moodDesc.isNotBlank()) {
+        if (moodDesc != null && moodDesc.isNotBlank() && !uiState.moodViewed) {
             val moodColor = moodCircleColor(uiState.moodLabel)
             val infiniteTransition = rememberInfiniteTransition(label = "glow")
             val pulse by infiniteTransition.animateFloat(
@@ -102,7 +102,7 @@ fun NowPlayingScreen(
                 modifier = Modifier
                     .size(40.dp, 40.dp)
                     .clip(CircleShape)
-                    .clickable { onMoodClick() }
+                    .clickable { viewModel.markMoodViewed(); onMoodClick() }
             ) {
                 val center = Offset(size.width / 2, size.height / 2)
                 val radius = size.minDimension / 2 * pulse
