@@ -68,16 +68,6 @@ fun MoodDetailScreen(
             .fillMaxSize()
             .background(bgColor)
     ) {
-        // Capa decorativa: círculo grande difuminado arriba
-        Box(
-            modifier = Modifier
-                .size(200.dp)
-                .align(Alignment.TopCenter)
-                .offset(x = 0.dp, y = (-50).dp)
-                .clip(CircleShape)
-                .background(bgColor.copy(alpha = 0.5f))
-        )
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
