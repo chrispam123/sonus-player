@@ -7,6 +7,7 @@ import com.sonus.player.domain.model.HistoryEntry
 import com.sonus.player.domain.model.Track
 import com.sonus.player.domain.repository.PlaybackHistoryRepository
 import com.sonus.player.data.mapper.toDomain
+import com.sonus.player.data.mapper.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -31,6 +32,11 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
         }
 
     override suspend fun addToHistory(track: Track) {
+        // 🆕 Guardar el track en la tabla tracks si no existe.
+        // Los tracks de ccMixter no se guardan en la librería local,
+        // pero el historial los necesita para poder mostrarlos.
+        trackDao.insertAll(listOf(track.toEntity()))
+
         historyDao.insert(
             HistoryEntity(trackId = track.id, playedAt = System.currentTimeMillis())
         )
