@@ -105,11 +105,13 @@ class MoodAnalyzerService {
      *  Return a JSON object with these exact fields: ..."
      */
     private fun buildMoodPrompt(request: MoodRequest): String {
-        // Construir lista de canciones
+        // Construir lista de canciones con género
         val tracksList = request.tracks
-            .take(15) // Máximo 15 canciones para no exceder el contexto
+            .take(15)
             .mapIndexed { i, track ->
-                "${i + 1}. \"${track.title}\" by ${track.artist}"
+                val genreInfo =
+                    if (!track.genre.isNullOrBlank()) "[${track.genre}]" else "[genre: unknown, infer from artist]"
+                "${i + 1}. \"${track.title}\" by ${track.artist} $genreInfo"
             }
             .joinToString("\n")
 
@@ -127,6 +129,12 @@ class MoodAnalyzerService {
             Analyze the emotional state of someone who listened to these songs in the last hour:
 
             $tracksList
+
+            For each song, consider the artist's typical genre and era.
+            Reggaeton/Latin/urban → festive/energetic. Folk/singer-songwriter/acoustic → introspective/melancholic.
+            Rock/metal → tense/energetic. Ballads/pop → romantic/nostalgic.
+            If genre is unknown, infer it from the artist's name and song title.
+            Use genre as a hint, not a rule — weigh the actual songs too.
 
             Suggest 3 NEW songs from artists SIMILAR to those in the list. DO NOT repeat songs or artists already in the listening history. Search the internet for real song recommendations.
 

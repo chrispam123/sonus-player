@@ -61,7 +61,7 @@ class PlayerViewModel @Inject constructor(
         private const val SAVE_DEBOUNCE_MS = 5000L
 
         // 🆕 Timer de análisis de mood: cada 5 minutos.
-        private const val MOOD_CHECK_INTERVAL_MS = 5 * 60 * 1000L
+        private const val MOOD_CHECK_INTERVAL_MS = 60_000L  // 1 min para pruebas
     }
 
     private val _uiState = MutableStateFlow(PlayerUiState())
@@ -344,6 +344,7 @@ class PlayerViewModel @Inject constructor(
                         TrackSummaryDto(
                             title = entry.track.title,
                             artist = entry.track.artist,
+                            genre = entry.track.genre,
                             durationMs = entry.track.duration,
                             playedAt = entry.playedAt
                         )
