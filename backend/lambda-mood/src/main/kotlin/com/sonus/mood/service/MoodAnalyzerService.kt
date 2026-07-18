@@ -128,7 +128,9 @@ class MoodAnalyzerService {
 
             $tracksList
 
-            Based on this listening pattern, respond with ONLY a JSON object (no markdown, no explanations):
+            Suggest 3 NEW songs from artists SIMILAR to those in the list. DO NOT repeat songs or artists already in the listening history. Search the internet for real song recommendations.
+
+            Based on this listening pattern and your song suggestions, respond with ONLY a JSON object (no markdown, no explanations):
             {
                 "mood": "one word emotional state in English (melancholy/energetic/calm/nostalgic/euphoric/tense/focused/romantic)",
                 "shaderMood": "choose the best match from: MOIRE_FLOW, RADIAL_WAVE, DIAMOND_GRID, INTERFERENCE, XEROGRAPHIC",
