@@ -19,4 +19,4 @@ sqs_message_retention_seconds = 86400  # 24 horas
 sqs_max_receive_count         = 3
 
 # deepseek_api_key se pasa como variable de entorno o en CLI:
-# terraform apply -var-file="environments/develop.tfvars" -var="deepseek_api_key=sk-REMOVED"
+# terraform apply -var-file="environments/develop.tfvars" -var="deepseek_api_key=sk-xxx"
