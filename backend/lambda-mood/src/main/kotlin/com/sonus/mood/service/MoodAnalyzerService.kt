@@ -148,6 +148,7 @@ class MoodAnalyzerService {
      * DeepSeek devuelve el JSON como string dentro del campo "content".
      */
     private fun parseMoodResponse(deepSeekResponse: String, request: MoodRequest): MoodResponse {
+        println("DeepSeek raw response: $deepSeekResponse")
         // Extraer el content de la respuesta de DeepSeek
         val contentStart = deepSeekResponse.indexOf("\"content\":\"") + 11
         val rawContent = if (contentStart > 10) {
