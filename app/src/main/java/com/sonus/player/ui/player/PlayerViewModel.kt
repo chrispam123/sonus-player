@@ -381,7 +381,10 @@ class PlayerViewModel @Inject constructor(
                     }
                     // 🆕 Limpiar historial tras cada análisis exitoso.
                     // Así el próximo solo envía canciones nuevas, no acumula repetidas.
+                    // También reseteamos el tracker local para que la canción actual
+                    // se vuelva a registrar en el historial limpio.
                     historyRepository.clearHistory()
+                    lastTrackedTrackId = -1
                 } else {
                     _uiState.value = _uiState.value.copy(moodIsAnalyzing = false)
                     Log.w(TAG, "Mood: análisis falló o timeout")
