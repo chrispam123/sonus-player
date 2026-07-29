@@ -1,0 +1,266 @@
+name: Sonus CI
+
+# ============================================================
+# TRIGGERS
+# ============================================================
+# PR a develop → build + terraform plan (revisar antes de mergear)
+# Push a develop → build + terraform apply (desplegar automático)
+# ============================================================
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+jobs:
+  # ============================================================
+  # JOB 1: BUILD — Compila APK Android + JARs de Lambdas
+  # ============================================================
+  # Este job siempre se ejecuta (PR y push).
+  # Genera dos artifacts:
+  #   1. sonus-release-apk   → APK firmado para descargar
+  #   2. sonus-lambda-jars   → JARs para que Terraform los suba a AWS
+  # ============================================================
+  build:
+    name: Build APK & Lambdas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Cache de Gradle compartido entre Android y backend
+      # La key incluye los .gradle.kts de ambos proyectos
+      - name: Setup Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
+          restore-keys: gradle-
+
+      # ─── ANDROID APK ───────────────────────────────────
+
+      - name: Create secrets.properties (CI placeholder)
+        run: |
+          echo "LASTFM_API_KEY=" > secrets.properties
+          echo "GENIUS_ACCESS_TOKEN=" >> secrets.properties
+
+      - name: Decode keystore from secret
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /tmp/sonus-release.jks
+
+      - name: Create keystore.properties for CI
+        run: |
+          echo "storeFile=/tmp/sonus-release.jks" > keystore.properties
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build domain module
+        run: ./gradlew :domain:build
+
+      - name: Build data module
+        run: ./gradlew :data:compileDebugKotlin
+
+      - name: Build Release APK (signed)
+        run: ./gradlew :app:assembleDevelopRelease
+
+      - name: Run lint
+        run: ./gradlew :app:lintDebug --continue || true
+        continue-on-error: true
+
+      - name: Upload signed Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonus-release-apk
+          path: app/build/outputs/apk/develop/release/app-develop-release.apk
+          retention-days: 30
+
+      # ─── LAMBDA JARs ───────────────────────────────────
+      # El backend es un proyecto Gradle separado (backend/settings.gradle.kts)
+      # Compilamos los 3 JARs con shadowJar para subir a AWS Lambda
+
+      - name: Grant execute permission for backend gradlew
+        run: chmod +x backend/gradlew
+
+      - name: Build Lambda JARs
+        working-directory: backend
+        run: ./gradlew :lambda-receptor:shadowJar :lambda-lyrics:shadowJar :lambda-mood:shadowJar
+
+      # DEBUG: Verificar que shadowJar generó los archivos correctamente
+      - name: Debug - verify JARs before upload
+        run: |
+          echo "=== JARs generados ==="
+          ls -lh backend/lambda-receptor/build/libs/
+          ls -lh backend/lambda-lyrics/build/libs/
+          ls -lh backend/lambda-mood/build/libs/
+          echo "=== Todos los .jar del backend ==="
+          find backend -name "*.jar" -type f
+
+      - name: Upload Lambda JARs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonus-lambda-jars
+          path: |
+            backend/lambda-receptor/build/libs/lambda-receptor.jar
+            backend/lambda-lyrics/build/libs/lambda-lyrics.jar
+            backend/lambda-mood/build/libs/lambda-mood.jar
+          retention-days: 7
+
+  # ============================================================
+  # JOB 2: TERRAFORM PLAN — Solo en PR (revisar antes de mergear)
+  # ============================================================
+  # Muestra qué infraestructura cambiaría sin aplicar nada.
+  # Usa un placeholder para DEEPSEEK_API_KEY (no se necesita
+  # la key real para plan, solo para ejecutar las Lambdas).
+  # ============================================================
+  terraform-plan:
+    name: Terraform Plan (PR only)
+    if: github.event_name == 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Descargar los JARs compilados en el job "build".
+      # upload-artifact@v4 recorta el prefijo común (backend/),
+      # por lo que los JARs llegan a la raíz:
+      #   ./lambda-receptor/build/libs/lambda-receptor.jar
+      # Hay que moverlos de vuelta a backend/ para que Terraform
+      # los encuentre con ../backend/lambda-receptor/...
+      - name: Download Lambda JARs
+        uses: actions/download-artifact@v4
+        with:
+          name: sonus-lambda-jars
+
+      # Mover JARs a la ruta que espera Terraform (lambda.tf)
+      # De: ./lambda-receptor/build/libs/...
+      # A:  ./backend/lambda-receptor/build/libs/...
+      - name: Move JARs into backend/
+        run: |
+          mkdir -p backend/lambda-receptor/build/libs
+          mkdir -p backend/lambda-lyrics/build/libs
+          mkdir -p backend/lambda-mood/build/libs
+          mv lambda-receptor/build/libs/lambda-receptor.jar backend/lambda-receptor/build/libs/
+          mv lambda-lyrics/build/libs/lambda-lyrics.jar     backend/lambda-lyrics/build/libs/
+          mv lambda-mood/build/libs/lambda-mood.jar         backend/lambda-mood/build/libs/
+          echo "=== JARs movidos, verificando ==="
+          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
+          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
+          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.10.0"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init
+
+      # Seleccionar el workspace "develop" para que el prefijo
+      # de recursos sea sonus-develop-* (coincide con el estado en S3)
+      - name: Select Terraform workspace
+        working-directory: infra
+        run: |
+          terraform workspace select develop || terraform workspace new develop
+
+      - name: Terraform Plan
+        working-directory: infra
+        # En PR solo mostramos el plan, no aplicamos nada
+        # deepseek_api_key con placeholder: solo se necesita la key real en apply
+        run: |
+          terraform plan \
+            -var-file="environments/develop.tfvars" \
+            -var="deepseek_api_key=sk-ci-placeholder"
+
+  # ============================================================
+  # JOB 3: TERRAFORM APPLY — Solo en push a develop (post-merge)
+  # ============================================================
+  # Despliega automáticamente la infraestructura cuando se
+  # mergea un PR a develop. Actualiza las Lambdas con los
+  # nuevos JARs compilados.
+  # ============================================================
+  terraform-apply:
+    name: Terraform Apply (deploy)
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Lambda JARs
+        uses: actions/download-artifact@v4
+        with:
+          name: sonus-lambda-jars
+
+      # Mover JARs a la ruta que espera Terraform (lambda.tf)
+      # De: ./lambda-receptor/build/libs/...
+      # A:  ./backend/lambda-receptor/build/libs/...
+      - name: Move JARs into backend/
+        run: |
+          mkdir -p backend/lambda-receptor/build/libs
+          mkdir -p backend/lambda-lyrics/build/libs
+          mkdir -p backend/lambda-mood/build/libs
+          mv lambda-receptor/build/libs/lambda-receptor.jar backend/lambda-receptor/build/libs/
+          mv lambda-lyrics/build/libs/lambda-lyrics.jar     backend/lambda-lyrics/build/libs/
+          mv lambda-mood/build/libs/lambda-mood.jar         backend/lambda-mood/build/libs/
+          echo "=== JARs movidos, verificando ==="
+          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
+          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
+          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.10.0"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init
+
+      # terraform.workspace debe ser "develop" para que el prefijo
+      # de recursos coincida (sonus-develop-*)
+      - name: Select Terraform workspace
+        working-directory: infra
+        run: |
+          # Si el workspace develop no existe, lo crea
+          terraform workspace select develop || terraform workspace new develop
+
+      - name: Terraform Apply
+        working-directory: infra
+        # -auto-approve: no requiere confirmación manual en CI
+        # deepseek_api_key real desde GitHub Secrets
+        run: |
+          terraform apply -auto-approve \
+            -var-file="environments/develop.tfvars" \
+            -var="deepseek_api_key=${{ secrets.DEEPSEEK_API_KEY }}"

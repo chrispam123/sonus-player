@@ -31,6 +31,11 @@ android {
         buildConfig = true
     }
 
+    lint {
+        // Workaround: AGP lint crash with Kotlin 2.0+ metadata
+        disable += "StateFlowValueCalledInComposition"
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

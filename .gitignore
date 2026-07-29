@@ -18,7 +18,6 @@ build/
 
 # Gradle files
 .gradle/
-gradle/wrapper/gradle-wrapper.jar
 
 # Local configuration file (sdk path, etc)
 local.properties
@@ -50,6 +49,8 @@ Thumbs.db
 # API keys (NUNCA commitear)
 secrets.properties
 api_keys.properties
+keystore.properties
+*.jks
 
 # Coverage reports
 jacoco/
@@ -59,3 +60,27 @@ coverage/
 *.log
 *.tmp
 *.bak
+
+# ============================================================
+# TERRAFORM — Archivos generados y secretos
+# ============================================================
+# .terraform/         → Providers descargados (se regeneran con terraform init)
+# *.tfstate           → Estado local (el real vive en S3)
+# *.tfvars.local      → Variables locales con secrets
+# secrets.tfvars      → API keys de Terraform (nunca commitear)
+# crash.log           → Logs de crash de Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+secrets.tfvars
+*.tfvars.local
+infra/crash.log
+
+# ============================================================
+# BACKEND — JARs compilados de Kotlin Lambdas
+# ============================================================
+# Los JARs se generan en CI/CD, no se guardan en el repo
+# Solo ignoramos los JARs dentro de build/libs/ (resultado de shadowJar)
+# El gradle-wrapper.jar SÍ se trackea (necesario para compilar en CI)
+backend/**/build/

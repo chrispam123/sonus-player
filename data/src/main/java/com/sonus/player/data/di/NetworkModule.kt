@@ -5,6 +5,7 @@ import com.sonus.player.data.remote.genius.GeniusApiService
 import com.sonus.player.data.remote.lastfm.LastFmApiService
 import com.sonus.player.data.remote.lrclib.LrcLibApiService
 import com.sonus.player.data.remote.musicbrainz.MusicBrainzApiService
+import com.sonus.player.data.remote.sonus.SonusApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,8 +30,8 @@ object NetworkModule {
         }
         return OkHttpClient.Builder()
             .addInterceptor(logging)
-            .connectTimeout(3, TimeUnit.SECONDS)
-            .readTimeout(3, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
             .build()
     }
 
@@ -108,4 +109,28 @@ object NetworkModule {
     @Singleton
     fun provideCcMixterApiService(@Named("jamendo") retrofit: Retrofit): CcMixterApiService =
         retrofit.create(CcMixterApiService::class.java)
+
+    // ── SONUS BACKEND ──────────────────────────────────────
+    // Cliente Retrofit para el backend serverless en AWS.
+    // Base URL: API Gateway que expone las Lambdas (desplegado con Terraform).
+    // Endpoints: POST /lyrics, POST /mood, GET /result/{requestId}
+    // ============================================================
+
+    @Provides
+    @Singleton
+    @Named("sonus")
+    fun provideSonusRetrofit(
+        client: OkHttpClient,
+        @Named("sonus_base_url") baseUrl: String  // 🆕 Inyectado desde AppModule (BuildConfig)
+    ): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideSonusApiService(@Named("sonus") retrofit: Retrofit): SonusApiService =
+        retrofit.create(SonusApiService::class.java)
 }

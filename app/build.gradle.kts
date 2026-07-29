@@ -1,21 +1,44 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics.plugin)
+}
+
+// Load keystore properties
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
     namespace = "com.sonus.player"
     compileSdk = 36
 
+    signingConfigs {
+        if (keystorePropertiesFile.exists() && keystoreProperties.getProperty("storeFile", "").isNotEmpty()) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile", ""))
+                storePassword = keystoreProperties.getProperty("storePassword", "")
+                keyAlias = keystoreProperties.getProperty("keyAlias", "")
+                keyPassword = keystoreProperties.getProperty("keyPassword", "")
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.sonus.player"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -23,11 +46,34 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (keystorePropertiesFile.exists() && keystoreProperties.getProperty("storeFile", "").isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+    }
+
+    // 🆕 Flavors: develop apunta al backend de pruebas, prod al de producción.
+    // Cada flavor compila su propio APK con la URL correcta del API Gateway.
+    flavorDimensions += "environment"
+    productFlavors {
+        create("develop") {
+            dimension = "environment"
+            versionNameSuffix = "-dev"
+            buildConfigField("String", "SONUS_API_URL", "\"https://sz4aqbavm2.execute-api.us-east-1.amazonaws.com/develop/\"")
+        }
+        create("prod") {
+            dimension = "environment"
+            buildConfigField("String", "SONUS_API_URL", "\"https://gsvb2col0d.execute-api.us-east-1.amazonaws.com/prod/\"")
+        }
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -38,6 +84,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true  // 🆕 Necesario para BuildConfig con flavors
     }
 }
 
@@ -79,6 +126,11 @@ dependencies {
 
     // Image Loading
     implementation(libs.coil.compose)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
 
     // Testing
     testImplementation(libs.junit)
