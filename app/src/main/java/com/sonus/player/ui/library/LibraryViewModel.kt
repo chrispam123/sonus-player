@@ -50,15 +50,14 @@ class LibraryViewModel @Inject constructor(
     }
 
     /**
-     * Only scan MediaStore if the database has no tracks.
-     * This prevents re-scanning every time the user navigates to Library.
+     * Escanea MediaStore cada vez que se abre la app.
+     * trackDao.insertAll usa OnConflictStrategy.REPLACE:
+     * tracks existentes se actualizan, nuevos se insertan.
+     * Sin penalización de rendimiento — MediaStore es un content provider.
      */
     private fun scanIfEmpty() {
         viewModelScope.launch {
-            val count = trackDao.getTrackCount()
-            if (count == 0) {
-                scanLibrary()
-            }
+            scanLibrary()
         }
     }
 
