@@ -1,0 +1,154 @@
+name: Sonus CI — PROD
+
+# ============================================================
+# TRIGGERS
+# ============================================================
+# Solo se ejecuta al hacer push a main.
+# Cada merge develop → main despliega en producción.
+# ============================================================
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ============================================================
+  # JOB 1: BUILD — Compila APK + JARs igual que develop
+  # ============================================================
+  build:
+    name: Build APK & Lambdas (PROD)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
+          restore-keys: gradle-
+
+      - name: Create secrets.properties (CI placeholder)
+        run: |
+          echo "LASTFM_API_KEY=" > secrets.properties
+          echo "GENIUS_ACCESS_TOKEN=" >> secrets.properties
+
+      - name: Decode keystore from secret
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /tmp/sonus-release.jks
+
+      - name: Create keystore.properties for CI
+        run: |
+          echo "storeFile=/tmp/sonus-release.jks" > keystore.properties
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build domain module
+        run: ./gradlew :domain:build
+
+      - name: Build data module
+        run: ./gradlew :data:compileReleaseKotlin
+
+      - name: Build Release APK (signed)
+        run: ./gradlew :app:assembleRelease
+
+      - name: Run lint
+        run: ./gradlew :app:lintRelease --continue || true
+        continue-on-error: true
+
+      - name: Upload signed Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonus-prod-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      # ─── LAMBDA JARs ───────────────────────────────────
+      - name: Grant execute permission for backend gradlew
+        run: chmod +x backend/gradlew
+
+      - name: Build Lambda JARs
+        working-directory: backend
+        run: ./gradlew :lambda-receptor:shadowJar :lambda-lyrics:shadowJar :lambda-mood:shadowJar
+
+      - name: Upload Lambda JARs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonus-prod-lambda-jars
+          path: |
+            backend/lambda-receptor/build/libs/lambda-receptor.jar
+            backend/lambda-lyrics/build/libs/lambda-lyrics.jar
+            backend/lambda-mood/build/libs/lambda-mood.jar
+          retention-days: 7
+
+  # ============================================================
+  # JOB 2: TERRAFORM APPLY — Despliega infra en prod (main)
+  # ============================================================
+  terraform-apply:
+    name: Terraform Apply (PROD)
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Lambda JARs
+        uses: actions/download-artifact@v4
+        with:
+          name: sonus-prod-lambda-jars
+
+      # upload-artifact recorta el prefijo común (backend/).
+      # Hay que mover los JARs a la ruta que espera Terraform.
+      - name: Move JARs into backend/
+        run: |
+          mkdir -p backend/lambda-receptor/build/libs
+          mkdir -p backend/lambda-lyrics/build/libs
+          mkdir -p backend/lambda-mood/build/libs
+          mv lambda-receptor/build/libs/lambda-receptor.jar backend/lambda-receptor/build/libs/
+          mv lambda-lyrics/build/libs/lambda-lyrics.jar     backend/lambda-lyrics/build/libs/
+          mv lambda-mood/build/libs/lambda-mood.jar         backend/lambda-mood/build/libs/
+          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
+          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
+          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.10.0"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init
+
+      - name: Select Terraform workspace
+        working-directory: infra
+        run: |
+          terraform workspace select prod || terraform workspace new prod
+
+      - name: Terraform Apply
+        working-directory: infra
+        run: |
+          terraform apply -auto-approve \
+            -var-file="environments/prod.tfvars" \
+            -var="deepseek_api_key=${{ secrets.DEEPSEEK_API_KEY }}"
