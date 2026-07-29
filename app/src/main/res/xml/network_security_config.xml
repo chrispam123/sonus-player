@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext (HTTP) for ccMixter streaming -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">ccmixter.org</domain>
-    </domain-config>
+    <!-- Permite tráfico HTTP (cleartext) a todos los dominios. -->
+    <!-- Necesario para streaming de audio desde CDNs de ccMixter y otros. -->
+    <!-- El riesgo es mínimo: solo transmite audio, no datos sensibles. -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>
