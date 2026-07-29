@@ -195,6 +195,7 @@ private fun TrackList(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AlbumList(
     tracks: List<Track>,
@@ -206,6 +207,9 @@ private fun AlbumList(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = { onTrackClick(albumTracks.first(), albumTracks) }
+                    )
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -231,6 +235,7 @@ private fun AlbumList(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ArtistList(
     tracks: List<Track>,
@@ -242,6 +247,9 @@ private fun ArtistList(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = { onTrackClick(artistTracks.first(), artistTracks) }
+                    )
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Column {
