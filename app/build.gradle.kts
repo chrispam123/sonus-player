@@ -56,6 +56,21 @@ android {
         }
     }
 
+    // 🆕 Flavors: develop apunta al backend de pruebas, prod al de producción.
+    // Cada flavor compila su propio APK con la URL correcta del API Gateway.
+    flavorDimensions += "environment"
+    productFlavors {
+        create("develop") {
+            dimension = "environment"
+            versionNameSuffix = "-dev"
+            buildConfigField("String", "SONUS_API_URL", "\"https://sz4aqbavm2.execute-api.us-east-1.amazonaws.com/develop/\"")
+        }
+        create("prod") {
+            dimension = "environment"
+            buildConfigField("String", "SONUS_API_URL", "\"https://gsvb2col0d.execute-api.us-east-1.amazonaws.com/prod/\"")
+        }
+    }
+
     lint {
         abortOnError = false
         checkReleaseBuilds = false
@@ -69,6 +84,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true  // 🆕 Necesario para BuildConfig con flavors
     }
 }
 

@@ -119,9 +119,12 @@ object NetworkModule {
     @Provides
     @Singleton
     @Named("sonus")
-    fun provideSonusRetrofit(client: OkHttpClient): Retrofit =
+    fun provideSonusRetrofit(
+        client: OkHttpClient,
+        @Named("sonus_base_url") baseUrl: String  // 🆕 Inyectado desde AppModule (BuildConfig)
+    ): Retrofit =
         Retrofit.Builder()
-            .baseUrl("https://sz4aqbavm2.execute-api.us-east-1.amazonaws.com/develop/")
+            .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

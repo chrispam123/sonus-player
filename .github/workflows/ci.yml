@@ -74,7 +74,7 @@ jobs:
         run: ./gradlew :data:compileDebugKotlin
 
       - name: Build Release APK (signed)
-        run: ./gradlew :app:assembleRelease
+        run: ./gradlew :app:assembleDevelopRelease
 
       - name: Run lint
         run: ./gradlew :app:lintDebug --continue || true
@@ -84,7 +84,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sonus-release-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/develop/release/app-develop-release.apk
           retention-days: 30
 
       # ─── LAMBDA JARs ───────────────────────────────────
