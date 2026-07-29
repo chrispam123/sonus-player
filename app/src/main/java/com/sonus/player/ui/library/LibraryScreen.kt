@@ -195,6 +195,7 @@ private fun TrackList(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AlbumList(
     tracks: List<Track>,
@@ -234,6 +235,7 @@ private fun AlbumList(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ArtistList(
     tracks: List<Track>,
