@@ -21,6 +21,10 @@ data class TrackEntity(
     @ColumnInfo(name = "file_path")
     val filePath: String,
 
+    // 🆕 URL de streaming (ccMixter). NULL para archivos locales.
+    @ColumnInfo(name = "stream_url")
+    val streamUrl: String? = null,
+
     @ColumnInfo(name = "file_size")
     val fileSize: Long,
 

@@ -18,7 +18,9 @@ fun TrackEntity.toDomain(): Track = Track(
     format = parseAudioFormat(format),
     trackNumber = trackNumber,
     year = year,
-    genre = genre
+    genre = genre,
+    streamUrl = streamUrl,  // 🆕 Recuperar URL de streaming
+    coverArtUrl = null
 )
 
 fun Track.toEntity(): TrackEntity = TrackEntity(
@@ -36,6 +38,7 @@ fun Track.toEntity(): TrackEntity = TrackEntity(
     trackNumber = trackNumber,
     year = year,
     genre = genre,
+    streamUrl = streamUrl,  // 🆕 Persistir URL de streaming
     lastScannedAt = System.currentTimeMillis()
 )
 

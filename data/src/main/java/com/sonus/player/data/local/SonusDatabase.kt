@@ -23,7 +23,7 @@ import com.sonus.player.data.local.entity.TrackEntity
         PlaylistTrackCrossRef::class,
         HistoryEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class SonusDatabase : RoomDatabase() {
