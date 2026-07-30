@@ -95,12 +95,12 @@ jobs:
           retention-days: 7
 
   # ============================================================
-  # JOB 2: TERRAFORM APPLY — Despliega infra en prod (main)
+  # JOB 2: TERRAFORM PLAN — Automático, muestra cambios sin aplicar
   # ============================================================
-  terraform-apply:
-    name: Terraform Apply (PROD)
+  terraform-plan:
+    name: Terraform Plan (PROD)
     needs: build
-    permissions:            # 🆕 necesario para OIDC
+    permissions:
       id-token: write
       contents: read
     runs-on: ubuntu-latest
@@ -122,9 +122,64 @@ jobs:
           mv lambda-receptor/build/libs/lambda-receptor.jar backend/lambda-receptor/build/libs/
           mv lambda-lyrics/build/libs/lambda-lyrics.jar     backend/lambda-lyrics/build/libs/
           mv lambda-mood/build/libs/lambda-mood.jar         backend/lambda-mood/build/libs/
-          ls -lh backend/lambda-receptor/build/libs/lambda-receptor.jar
-          ls -lh backend/lambda-lyrics/build/libs/lambda-lyrics.jar
-          ls -lh backend/lambda-mood/build/libs/lambda-mood.jar
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.10.0"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::668449743330:role/github-actions-prod-role
+          aws-region: us-east-1
+          role-session-name: sonus-prod-plan-${{ github.run_id }}
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init
+
+      - name: Select Terraform workspace
+        working-directory: infra
+        run: |
+          terraform workspace select prod || terraform workspace new prod
+
+      - name: Terraform Plan
+        working-directory: infra
+        run: |
+          terraform plan \
+            -var-file="environments/prod.tfvars" \
+            -var="deepseek_api_key=${{ secrets.DEEPSEEK_API_KEY }}"
+
+  # ============================================================
+  # JOB 3: TERRAFORM APPLY — Con aprobación manual (Environment)
+  # ============================================================
+  terraform-apply:
+    name: Terraform Apply (PROD)
+    needs: [build, terraform-plan]
+    environment: production  # 🆕 Bloquea hasta aprobación manual en GitHub
+    permissions:
+      id-token: write
+      contents: read
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Lambda JARs
+        uses: actions/download-artifact@v4
+        with:
+          name: sonus-prod-lambda-jars
+
+      - name: Move JARs into backend/
+        run: |
+          mkdir -p backend/lambda-receptor/build/libs
+          mkdir -p backend/lambda-lyrics/build/libs
+          mkdir -p backend/lambda-mood/build/libs
+          mv lambda-receptor/build/libs/lambda-receptor.jar backend/lambda-receptor/build/libs/
+          mv lambda-lyrics/build/libs/lambda-lyrics.jar     backend/lambda-lyrics/build/libs/
+          mv lambda-mood/build/libs/lambda-mood.jar         backend/lambda-mood/build/libs/
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
