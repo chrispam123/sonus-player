@@ -100,6 +100,9 @@ jobs:
   terraform-apply:
     name: Terraform Apply (PROD)
     needs: build
+    permissions:            #  necesario para OIDC
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
 
     steps:
@@ -130,13 +133,13 @@ jobs:
         with:
           terraform_version: "~1.10.0"
 
+      # ✅ Poner esto:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::668449743330:role/github-actions-prod-role
           aws-region: us-east-1
-          #github-actions-dev-role debe tener el ARN del repo como trusted entity.
+          role-session-name: sonus-prod-apply-${{ github.run_id }}
           
       
       - name: Terraform Init
