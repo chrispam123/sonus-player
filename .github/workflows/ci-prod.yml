@@ -130,13 +130,15 @@ jobs:
         with:
           terraform_version: "~1.10.0"
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
+          #github-actions-dev-role debe tener el ARN del repo como trusted entity.
+          
+      
       - name: Terraform Init
         working-directory: infra
         run: terraform init

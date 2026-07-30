@@ -129,6 +129,9 @@ jobs:
     name: Terraform Plan (PR only)
     if: github.event_name == 'pull_request'
     needs: build
+    permissions:            # 🆕 necesario para OIDC
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
 
     steps:
@@ -170,9 +173,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::668449743330:role/github-actions-dev-role
           aws-region: us-east-1
+          role-session-name: sonus-develop-plan-${{ github.run_id }}
 
       - name: Terraform Init
         working-directory: infra
@@ -205,6 +208,9 @@ jobs:
     name: Terraform Apply (deploy)
     if: github.event_name == 'push'
     needs: build
+    permissions:            # 🆕 necesario para OIDC
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
 
     steps:
@@ -237,12 +243,12 @@ jobs:
         with:
           terraform_version: "~1.10.0"
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::668449743330:role/github-actions-dev-role
           aws-region: us-east-1
+          role-session-name: sonus-develop-apply-${{ github.run_id }}
 
       - name: Terraform Init
         working-directory: infra
