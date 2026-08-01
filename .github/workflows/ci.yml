@@ -75,6 +75,8 @@ jobs:
 
       - name: Build Release APK (signed)
         run: ./gradlew :app:assembleDevelopRelease
+        env:
+          SONUS_DEVELOP_API_KEY: ${{ secrets.SONUS_DEVELOP_API_KEY }}
 
       - name: Run lint
         run: ./gradlew :app:lintDebug --continue || true

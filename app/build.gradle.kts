@@ -64,10 +64,13 @@ android {
             dimension = "environment"
             versionNameSuffix = "-dev"
             buildConfigField("String", "SONUS_API_URL", "\"https://sz4aqbavm2.execute-api.us-east-1.amazonaws.com/develop/\"")
+            // 🆕 API Key desde variable de entorno en CI (o vacío en debug local)
+            buildConfigField("String", "SONUS_API_KEY", "\"${System.getenv("SONUS_DEVELOP_API_KEY") ?: ""}\"")
         }
         create("prod") {
             dimension = "environment"
             buildConfigField("String", "SONUS_API_URL", "\"https://gsvb2col0d.execute-api.us-east-1.amazonaws.com/prod/\"")
+            buildConfigField("String", "SONUS_API_KEY", "\"${System.getenv("SONUS_PROD_API_KEY") ?: ""}\"")
         }
     }
 

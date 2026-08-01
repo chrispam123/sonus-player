@@ -74,6 +74,17 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
         val path = if (stage != null) rawPath.removePrefix("/$stage") else rawPath
         context.logger.log("Receptor: $method $path")
 
+        // 🆕 Validar API Key: solo requests con la key correcta pasan.
+        // Frena ataques de denegación de wallet (DeepSeek cuesta por token).
+        val expectedKey = System.getenv("SONUS_API_KEY")
+        if (!expectedKey.isNullOrBlank()) {
+            val providedKey = input.headers?.get("x-api-key") ?: ""
+            if (providedKey != expectedKey) {
+                context.logger.log("Receptor: API Key inválida o ausente")
+                return errorResponse(403, "Forbidden: invalid API key")
+            }
+        }
+
         return try {
             when {
                 method == "POST" && path == "/lyrics" ->

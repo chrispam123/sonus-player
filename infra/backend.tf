@@ -52,6 +52,11 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    # 🆕 Para generar API Key aleatoria
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 
   # Backend S3 — estado remoto compartido

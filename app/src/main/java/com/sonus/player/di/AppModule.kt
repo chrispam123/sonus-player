@@ -23,4 +23,11 @@ object AppModule {
     @Singleton
     @Named("sonus_base_url")
     fun provideSonusBaseUrl(): String = BuildConfig.SONUS_API_URL
+
+    // 🆕 API Key: autentica requests al backend Sonus.
+    // Se pasa como variable de entorno en CI (SONUS_DEVELOP_API_KEY / SONUS_PROD_API_KEY).
+    @Provides
+    @Singleton
+    @Named("sonus_api_key")
+    fun provideSonusApiKey(): String = BuildConfig.SONUS_API_KEY
 }
