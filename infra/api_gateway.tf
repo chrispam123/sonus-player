@@ -24,11 +24,11 @@ resource "aws_apigatewayv2_api" "sonus_api" {
   protocol_type = "HTTP"
 
   # CORS — necesario para que la app Android pueda llamar a la API
-  # (aunque Android no usa browser, es buena práctica)
+  # 🆕 x-api-key agregado para autenticación
   cors_configuration {
-    allow_headers = ["Content-Type", "Authorization"]
+    allow_headers = ["Content-Type", "Authorization", "x-api-key"]
     allow_methods = ["GET", "POST", "OPTIONS"]
-    allow_origins = ["*"]  # En producción podrías restringir esto
+    allow_origins = ["*"]
   }
 
   tags = {
@@ -60,6 +60,13 @@ resource "aws_apigatewayv2_stage" "default" {
       responseLength = "$context.responseLength"
       integrationLatency = "$context.integrationLatency"
     })
+  }
+
+  # 🆕 Throttling: protege contra abuso incluso con API Key extraída.
+  # Máximo 10 requests en ráfaga, 5 requests/segundo sostenido.
+  default_route_settings {
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
   }
 
   tags = {
@@ -125,3 +132,20 @@ resource "aws_lambda_permission" "api_gateway_receptor" {
   # Restricción: solo este API Gateway puede invocar esta Lambda
   source_arn = "${aws_apigatewayv2_api.sonus_api.execution_arn}/*/*"
 }
+
+# ============================================================
+# 🆕 SEGURIDAD: API Key validada en Lambda Receptor
+# ============================================================
+# HTTP API v2 no soporta API Keys nativas (eso es de REST API v1).
+# La validación se hace en la Lambda Receptor: recibe x-api-key
+# del header y la compara con una variable de entorno.
+# El throttling del stage ya está configurado arriba.
+# ============================================================
+
+# Generar API Key aleatoria (32 caracteres)
+resource "random_password" "sonus_api_key" {
+  length  = 32
+  special = false
+}
+
+# ============================================================

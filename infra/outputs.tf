@@ -50,3 +50,10 @@ output "region" {
   description = "Región AWS donde está desplegado."
   value       = var.aws_region
 }
+
+# 🆕 API Key — se envía en el header x-api-key desde la app Android
+output "api_key_value" {
+  description = "Valor de la API Key para autenticar requests."
+  value       = random_password.sonus_api_key.result
+  sensitive   = true
+}

@@ -12,6 +12,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.Interceptor
+import okhttp3.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -111,17 +113,32 @@ object NetworkModule {
         retrofit.create(CcMixterApiService::class.java)
 
     // ── SONUS BACKEND ──────────────────────────────────────
-    // Cliente Retrofit para el backend serverless en AWS.
-    // Base URL: API Gateway que expone las Lambdas (desplegado con Terraform).
-    // Endpoints: POST /lyrics, POST /mood, GET /result/{requestId}
+    // 🆕 OkHttpClient específico para Sonus: añade x-api-key a cada request.
+    // El interceptor lee la key del BuildConfig inyectado vía Hilt.
     // ============================================================
 
     @Provides
     @Singleton
     @Named("sonus")
+    fun provideSonusOkHttpClient(
+        baseClient: OkHttpClient,
+        @Named("sonus_api_key") apiKey: String
+    ): OkHttpClient =
+        baseClient.newBuilder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("x-api-key", apiKey)
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
+
+    @Provides
+    @Singleton
+    @Named("sonus")
     fun provideSonusRetrofit(
-        client: OkHttpClient,
-        @Named("sonus_base_url") baseUrl: String  // 🆕 Inyectado desde AppModule (BuildConfig)
+        @Named("sonus") client: OkHttpClient,
+        @Named("sonus_base_url") baseUrl: String
     ): Retrofit =
         Retrofit.Builder()
             .baseUrl(baseUrl)
