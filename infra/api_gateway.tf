@@ -24,11 +24,11 @@ resource "aws_apigatewayv2_api" "sonus_api" {
   protocol_type = "HTTP"
 
   # CORS — necesario para que la app Android pueda llamar a la API
-  # (aunque Android no usa browser, es buena práctica)
+  # 🆕 x-api-key agregado para autenticación
   cors_configuration {
-    allow_headers = ["Content-Type", "Authorization"]
+    allow_headers = ["Content-Type", "Authorization", "x-api-key"]
     allow_methods = ["GET", "POST", "OPTIONS"]
-    allow_origins = ["*"]  # En producción podrías restringir esto
+    allow_origins = ["*"]
   }
 
   tags = {
@@ -60,6 +60,13 @@ resource "aws_apigatewayv2_stage" "default" {
       responseLength = "$context.responseLength"
       integrationLatency = "$context.integrationLatency"
     })
+  }
+
+  # 🆕 Throttling: protege contra abuso incluso con API Key extraída.
+  # Máximo 10 requests en ráfaga, 5 requests/segundo sostenido.
+  default_route_settings {
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
   }
 
   tags = {
@@ -95,6 +102,7 @@ resource "aws_apigatewayv2_route" "post_lyrics" {
   api_id    = aws_apigatewayv2_api.sonus_api.id
   route_key = "POST /lyrics"
   target    = "integrations/${aws_apigatewayv2_integration.receptor_integration.id}"
+  api_key_required = true  # 🆕 Requiere API Key
 }
 
 # POST /mood — Enviar historial para análisis de mood
@@ -102,6 +110,7 @@ resource "aws_apigatewayv2_route" "post_mood" {
   api_id    = aws_apigatewayv2_api.sonus_api.id
   route_key = "POST /mood"
   target    = "integrations/${aws_apigatewayv2_integration.receptor_integration.id}"
+  api_key_required = true  # 🆕 Requiere API Key
 }
 
 # GET /result/{requestId} — Consultar estado de una solicitud
@@ -109,6 +118,7 @@ resource "aws_apigatewayv2_route" "get_result" {
   api_id    = aws_apigatewayv2_api.sonus_api.id
   route_key = "GET /result/{requestId}"
   target    = "integrations/${aws_apigatewayv2_integration.receptor_integration.id}"
+  api_key_required = true  # 🆕 Requiere API Key
 }
 
 # ============================================================
@@ -124,4 +134,35 @@ resource "aws_lambda_permission" "api_gateway_receptor" {
 
   # Restricción: solo este API Gateway puede invocar esta Lambda
   source_arn = "${aws_apigatewayv2_api.sonus_api.execution_arn}/*/*"
+}
+
+# ============================================================
+# 🆕 SEGURIDAD: API Key + Usage Plan + Throttling
+# ============================================================
+# Capa 1: API Key — solo requests con key válida pasan.
+# Frena scrapers genéricos y bots. La app Android la envía en
+# el header x-api-key.
+# ============================================================
+
+resource "aws_apigatewayv2_api_key" "sonus_app" {
+  name        = "${local.prefix}-app-key"
+  description = "API Key para la app Android Sonus (${local.prefix})"
+  tags = { Name = "${local.prefix}-app-key" }
+}
+
+# Usage Plan — controla cuántos requests puede hacer la API Key
+resource "aws_apigatewayv2_usage_plan" "sonus_plan" {
+  name        = "${local.prefix}-usage-plan"
+  description = "Usage plan con throttling para Sonus (${local.prefix})"
+  api_stages {
+    api_id = aws_apigatewayv2_api.sonus_api.id
+    stage  = aws_apigatewayv2_stage.default.id
+  }
+}
+
+# Vincular la API Key al Usage Plan
+resource "aws_apigatewayv2_usage_plan_key" "sonus_plan_key" {
+  api_key_id    = aws_apigatewayv2_api_key.sonus_app.id
+  key_type      = "API_KEY"
+  usage_plan_id = aws_apigatewayv2_usage_plan.sonus_plan.id
 }
