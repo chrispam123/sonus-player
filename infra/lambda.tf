@@ -62,6 +62,9 @@ resource "aws_lambda_function" "receptor" {
 
       # Entorno actual (útil para logging)
       ENVIRONMENT = var.environment
+
+      # 🆕 API Key para autenticación de la app Android
+      SONUS_API_KEY = random_password.sonus_api_key.result
     }
   }
 

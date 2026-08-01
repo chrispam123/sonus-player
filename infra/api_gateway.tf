@@ -102,7 +102,6 @@ resource "aws_apigatewayv2_route" "post_lyrics" {
   api_id    = aws_apigatewayv2_api.sonus_api.id
   route_key = "POST /lyrics"
   target    = "integrations/${aws_apigatewayv2_integration.receptor_integration.id}"
-  api_key_required = true  # 🆕 Requiere API Key
 }
 
 # POST /mood — Enviar historial para análisis de mood
@@ -110,7 +109,6 @@ resource "aws_apigatewayv2_route" "post_mood" {
   api_id    = aws_apigatewayv2_api.sonus_api.id
   route_key = "POST /mood"
   target    = "integrations/${aws_apigatewayv2_integration.receptor_integration.id}"
-  api_key_required = true  # 🆕 Requiere API Key
 }
 
 # GET /result/{requestId} — Consultar estado de una solicitud
@@ -118,7 +116,6 @@ resource "aws_apigatewayv2_route" "get_result" {
   api_id    = aws_apigatewayv2_api.sonus_api.id
   route_key = "GET /result/{requestId}"
   target    = "integrations/${aws_apigatewayv2_integration.receptor_integration.id}"
-  api_key_required = true  # 🆕 Requiere API Key
 }
 
 # ============================================================
@@ -137,32 +134,18 @@ resource "aws_lambda_permission" "api_gateway_receptor" {
 }
 
 # ============================================================
-# 🆕 SEGURIDAD: API Key + Usage Plan + Throttling
+# 🆕 SEGURIDAD: API Key validada en Lambda Receptor
 # ============================================================
-# Capa 1: API Key — solo requests con key válida pasan.
-# Frena scrapers genéricos y bots. La app Android la envía en
-# el header x-api-key.
+# HTTP API v2 no soporta API Keys nativas (eso es de REST API v1).
+# La validación se hace en la Lambda Receptor: recibe x-api-key
+# del header y la compara con una variable de entorno.
+# El throttling del stage ya está configurado arriba.
 # ============================================================
 
-resource "aws_apigatewayv2_api_key" "sonus_app" {
-  name        = "${local.prefix}-app-key"
-  description = "API Key para la app Android Sonus (${local.prefix})"
-  tags = { Name = "${local.prefix}-app-key" }
+# Generar API Key aleatoria (32 caracteres)
+resource "random_password" "sonus_api_key" {
+  length  = 32
+  special = false
 }
 
-# Usage Plan — controla cuántos requests puede hacer la API Key
-resource "aws_apigatewayv2_usage_plan" "sonus_plan" {
-  name        = "${local.prefix}-usage-plan"
-  description = "Usage plan con throttling para Sonus (${local.prefix})"
-  api_stages {
-    api_id = aws_apigatewayv2_api.sonus_api.id
-    stage  = aws_apigatewayv2_stage.default.id
-  }
-}
-
-# Vincular la API Key al Usage Plan
-resource "aws_apigatewayv2_usage_plan_key" "sonus_plan_key" {
-  api_key_id    = aws_apigatewayv2_api_key.sonus_app.id
-  key_type      = "API_KEY"
-  usage_plan_id = aws_apigatewayv2_usage_plan.sonus_plan.id
-}
+# ============================================================
