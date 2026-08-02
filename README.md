@@ -1,6 +1,6 @@
 # 🎵 Sonus — AI-Powered Music Player
 
-> Reproductor de música Android con inteligencia artificial que analiza tu estado de ánimo basándose en lo que escuchas.
+> Reproductor de música guardada en tu dispositivo para Android con la opcion de escuchar musica online libre de derechos de autor, y con la ayuda de la inteligencia artificial analiza tu estado de ánimo basándose en lo que escuchas,te ofrece recomendacion de canciones, letras de las canciones y busqueda de letras de canciones desconocidas ayudado tambien por inteligencia artificial.Libre de publicidad y nada sale de tu dispositivo.
 
 [![Android](https://img.shields.io/badge/Android-10%2B-green)](https://developer.android.com) [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-blue)](https://kotlinlang.org) [![AWS](https://img.shields.io/badge/AWS-Serverless-orange)](https://aws.amazon.com) [![Terraform](https://img.shields.io/badge/Terraform-1.10%2B-purple)](https://terraform.io)
 
@@ -8,10 +8,10 @@
 
 ## ✨ Features
 
-| 🎧 | **Local + Streaming** — Reproduce tu biblioteca local y música Creative Commons de ccMixter |
+| 🎧 | **Local + Streaming** — Reproduce tu biblioteca local y música online de ccMixter |
 | 🤖 | **Letras con IA** — DeepSeek genera letras para cualquier canción (incluso las más oscuras) |
 | 🎭 | **Mood Analyzer** — Analiza tu historial de escucha y detecta tu estado de ánimo  y te da recomendaciones de canciones|
-| 🎨 | **Living Canvas** — Shaders GLSL xerográficos que reaccionan a la música en tiempo real |
+| 🎨 | **Living Canvas** — Shaders GLSL xerográficos que reaccionan a la música en tiempo real |Grafico que reaccionan al ritmo de la música
 | ☁️ | **Serverless AWS** — Backend con API Gateway + Lambda + DynamoDB (pago por uso) |
 | 🔄 | **CI/CD** — Deploy automático a develop y producción con GitHub Actions |
 
@@ -61,7 +61,7 @@ sonus-player/
 │   └── lambda-mood/        # SQS → DeepSeek → DynamoDB
 ├── infra/                  # Terraform (AWS IaaC)
 ├── .github/workflows/      # CI/CD (ci.yml + ci-prod.yml)
-├── SPEC.md                 # Especificación completa del producto
+├── SPEC.md                 # Especificación completa del producto ayudado por IA pero la artesania del diseño y el Pensamiento de Sistemas es humano siempre
 └── README.md               # Este archivo
 ```
 
@@ -88,7 +88,7 @@ sonus-player/
 |---|---|---|
 | **URL** | `sz4aqbavm2.execute-api.../develop` | `gsvb2col0d.execute-api.../prod` |
 | **Rama** | `develop` | `main` |
-| **Deploy** | Push automático | Merge develop→main |
+| **Deploy** | Push automático | Merge develop→main |Con intervencion humana para el despligue en producción
 
 ## 📖 Documentación
 
