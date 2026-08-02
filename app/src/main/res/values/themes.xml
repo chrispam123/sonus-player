@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.Sonus" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Tema oscuro durante el cold start: evita el flash blanco al abrir la app -->
+    <style name="Theme.Sonus" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ink_black</item>
+        <item name="android:statusBarColor">@color/ink_black</item>
+        <item name="android:navigationBarColor">@color/ink_black</item>
+    </style>
 </resources>

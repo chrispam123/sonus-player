@@ -1,12 +1,12 @@
-# Sonus — Especificación del Producto (SPEC)
+# Sonus — Especificación del Producto (SPEC) AYUDADO CON IA en la elaboracion pero el pensamiento sistemico las decision de arquitectura, patrones de diseño, la seguridad y la responsabilidad de las decisiones es 100% humana.
 
-> **Versión:** 1.0.2 | **Fecha:** Julio 2026 | **Plataforma:** Android 10+ (API 29)
+**Versión:** 1.0.6 | **Fecha:** Agosto 2026 | **Plataforma:** Android 10+ (API 29)
 
 ---
 
 ## 1. Visión del Producto
 
-Sonus es un reproductor de música Android con inteligencia artificial que analiza tu estado de ánimo basándose en lo que escuchas. Combina música local, streaming de música Creative Commons (ccMixter), generación de letras con IA (DeepSeek)y recomendación de canciones, y visualizadores GLSL en tiempo real.
+Sonus es un reproductor de música Android con inteligencia artificial que analiza tu estado de ánimo basándose en lo que escuchas. Combina música local, streaming de música Creative Commons (ccMixter), generación de letras con IA (DeepSeek)y recomendación de canciones, y visualizadores GLSL en tiempo real(graficos a ritmo de la música).
 
 ### 1.1 Propuesta de valor
 
@@ -20,7 +20,7 @@ Sonus es un reproductor de música Android con inteligencia artificial que anali
 
 ### 1.2 Público objetivo
 
-Usuarios de Android que escuchan música local, quieren letras para cualquier canción (incluso las oscuras/independientes), y disfrutan de una experiencia visual que reacciona a la música y a su estado emocional.
+Usuarios de Android que escuchan música local, quieren letras para cualquier canción (incluso las oscuras/independientes), y disfrutar de una experiencia visual que reacciona a la música y a su estado emocional.Resolví un problema porque no habian alternativas gratis y sin publicidad, y porque queria aplicar mi filosofía de diseño y la empatia músical ayudado por el analisis de la Inteligencia Artificial.
 
 ---
 
@@ -97,6 +97,19 @@ Usuarios de Android que escuchan música local, quieren letras para cualquier ca
 | DynamoDB PAY_PER_REQUEST | 3 | lyrics-cache, request-status, mood-history |
 | IAM Roles | 3 | uno por Lambda |
 | CloudWatch Logs | 1 | API Gateway |
+| API Key (random_password) | 1 | `sonus-{env}-app-key` |
+
+### 3.3 Seguridad
+
+| Capa | Implementación | Dónde |
+|:----:|---------------|-------|
+| **Autenticación CI** | OIDC (`id-token: write`) + roles IAM temporales (1h) | `ci.yml`, `ci-prod.yml` |
+| **Mínimo privilegio CI** | Roles scoped por nombre de recurso (`sonus-{env}-*`) | CLI `aws iam put-role-policy` |
+| **Separación entornos** | Dev solo puede `sonus-develop-*`, prod solo `sonus-prod-*` | Trust policies OIDC + IAM policies |
+| **API Key** | Lambda Receptor valida `x-api-key` contra `SONUS_API_KEY` env var | `Handler.kt`, `lambda.tf` |
+| **Throttling** | 10 burst, 5 req/s en API Gateway stage | `api_gateway.tf` (`default_route_settings`) |
+| **Aprobación manual** | GitHub Environment `production` con reviewer obligatorio | `ci-prod.yml` |
+| **Key aleatoria** | `random_password` 32 chars, rotable vía Terraform | `api_gateway.tf`, `outputs.tf` |
 
 ### 3.3 Entornos
 
@@ -110,10 +123,10 @@ Usuarios de Android que escuchan música local, quieren letras para cualquier ca
 
 ### 3.4 CI/CD
 
-| Workflow | Rama | Qué hace |
-|----------|------|----------|
-| `ci.yml` | `develop` | Build APK develop + JARs → terraform apply |
-| `ci-prod.yml` | `main` | Build APK prod + JARs → terraform apply |
+| Workflow | Rama | Entorno | Qué hace | Aprobación |
+|----------|------|---------|----------|:----------:|
+| `ci.yml` | `develop` | `sonus-develop-*` | Build APK develop + JARs → terraform plan+apply | Automático |
+| `ci-prod.yml` | `main` | `sonus-prod-*` | Build APK prod + JARs → terraform plan → **aprobación manual** → apply | Manual (`environment: production`) |
 
 ---
 
@@ -124,7 +137,8 @@ Usuarios de Android que escuchan música local, quieren letras para cualquier ca
 - **Handler:** `APIGatewayV2HTTPEvent → APIGatewayV2HTTPResponse`
 - **Rutas:** `POST /lyrics`, `POST /mood`, `GET /result/{requestId}`
 - **Stage stripping:** `removePrefix("/$stage")` para HTTP API v2
-- **Flujo:** validar body → verificar caché DynamoDB → encolar SQS → 202
+- **API Key:** Valida `x-api-key` contra `SONUS_API_KEY` env var antes de enrutar
+- **Flujo:** validar API Key → validar body → verificar caché DynamoDB → encolar SQS → 202
 
 ### 4.2 Lambda Lyrics Processor
 
@@ -249,6 +263,64 @@ NowPlaying → LETRAS → LyricsScreen
 | **Workspaces TF** (no keys) | Keys separadas en backend | Mismo código, estados aislados, más simple |
 | **enable_search = true** | Sin search | DeepSeek busca en internet → letras reales, no alucinadas |
 | **clearHistory() post-análisis** | Historial acumulativo | Evita enviar las mismas canciones repetidamente |
+| **API Key en Lambda Receptor** | API Gateway API Keys | HTTP API v2 no soporta API Keys nativas → se valida en el handler |
+| **OIDC + roles scoped** | Credenciales estáticas | Sin secretos long-lived, mínimo privilegio por entorno |
+
+---
+
+## 8. Bugs Resueltos (Histórico)
+
+| # | Bug | Causa | Fix |
+|---|-----|-------|-----|
+| 1 | Shader fantasma 4s al salir | GLSurfaceView en SurfaceFlinger | TextureView + EGL manual |
+| 2 | Shader negro | eglMakeCurrent en main thread | Mover a hilo GL en corrutina |
+| 3 | Timeout ccMixter 3s | OkHttp readTimeout=3s | 10s/15s |
+| 4 | Streaming 8s al seleccionar | DefaultHttpDataSource timeout | preloadQueue() |
+| 5 | NavBar no respondía 1er toque | restoreState=true en navigate() | Quitar restoreState |
+| 6 | Lambda v1→v2 HTTP API | APIGatewayProxyRequestEvent | APIGatewayV2HTTPEvent |
+| 7 | Stage en path | /develop/lyrics → no match | removePrefix("/$stage") |
+| 8 | handleResultQuery no quitaba stage | Path sin limpiar en polling | Idem fix |
+| 9 | Links truncados | substringBefore("\"}") cortaba JSON | Parseo JSON completo de DeepSeek |
+| 10 | ccMixter no en historial | TrackEntity sin streamUrl | Añadir columna + migración Room v5 |
+| 11 | ccMixter no en tabla tracks | JOIN con tracks fallaba | trackDao.insertAll() antes del history insert |
+| 12 | lastTrackedTrackId no reseteaba | clearHistory sin reset | lastTrackedTrackId = -1 |
+| 13 | HTTP cleartext bloqueado en release | Solo ccmixer.org whitelisted | base-config cleartext para todos |
+| 14 | Albumes/Artistas no cliqueables | Sin combinedClickable | Añadido en AlbumList y ArtistList |
+| 15 | Scanner solo 1ª vez | if (count == 0) | Quitar condicional |
+| 16 | CI plan wrong workspace | Faltaba workspace select en plan | Añadido terraform-plan |
+| 17 | Doble environment en Lambda TF | 2 bloques environment | Unificado |
+| 18 | develop vs dev en variables TF | Validación inconsistente | Alineado a "develop" |
+| 19 | access_log_settings sin format | Campo requerido por AWS | JSON format |
+| 20 | MoodResponse placeholder "analyzed" | No parseaba JSON de DynamoDB | gson.fromJson() |
+| 21 | DeepSeek API Key en historial git | `sk-f9b5eb...` en develop.tfvars | git filter-repo + rotar key |
+| 22 | CI credenciales estáticas admin | AWS_ACCESS_KEY_ID permanente | OIDC + roles scoped temporales |
+
+---
+
+## 9. Roadmap
+
+### ✅ Completado
+
+- [x] MVP: reproducción local + streaming ccMixter
+- [x] Letras: LRCLIB + Genius + DeepSeek IA
+- [x] Mood: análisis de estado de ánimo con IA
+- [x] Shaders GLSL con textura Munari
+- [x] CI/CD: develop + prod con flavors
+- [x] Infra: Terraform con workspaces
+- [x] Seguridad: OIDC + API Key + Throttling + mínimo privilegio IAM
+
+### 📋 Pendientes (priorizados)
+
+| Prioridad | Feature | Esfuerzo |
+|:---------:|---------|:--------:|
+| P0 | Google Play Console — publicar APK | 1 día |
+| P1 | Sleep Timer | 2 horas |
+| P1 | Equalizer UI (ya existe lógica) | 3 horas |
+| P2 | Playlist reorder (drag & drop) | 4 horas |
+| P2 | Cover art desde Last.fm | 2 horas |
+| P3 | Modo offline (descargar ccMixter) | 1 día |
+| P3 | Compartir mood en redes | 3 horas |
+| P4 | Chromecast / Android Auto | 2 días |
 
 ---
 
