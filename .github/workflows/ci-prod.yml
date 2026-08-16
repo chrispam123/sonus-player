@@ -62,8 +62,11 @@ jobs:
       - name: Build data module
         run: ./gradlew :data:compileReleaseKotlin
 
-      - name: Build Release APK (signed)
-        run: ./gradlew :app:assembleProdRelease
+      # Antes: solo generaba el APK de prod
+      # Ahora: genera APK (para probar en móvil) Y AAB (para subir a Play).
+      # Se hace en UNA sola invocación de Gradle → reutiliza la compilación.
+      - name: Build Release APK + AAB (signed)
+        run: ./gradlew :app:assembleProdRelease :app:bundleProdRelease
         env:
           SONUS_PROD_API_KEY: ${{ secrets.SONUS_PROD_API_KEY }}
 
@@ -71,11 +74,21 @@ jobs:
         run: ./gradlew :app:lintProdRelease --continue || true
         continue-on-error: true
 
-      - name: Upload signed Release APK
+      # El APK se mantiene para sideload / pruebas manuales
+      - name: Upload signed Release APK (sideload/testing)
         uses: actions/upload-artifact@v4
         with:
           name: sonus-prod-apk
           path: app/build/outputs/apk/prod/release/app-prod-release.apk
+          retention-days: 30
+
+      # 🆕 El AAB es lo que acepta Google Play
+      # OJO: la ruta es bundle/prodRelease/ (NO apk/prod/release/)
+      - name: Upload Release AAB (Google Play)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonus-prod-aab
+          path: app/build/outputs/bundle/prodRelease/app-prod-release.aab
           retention-days: 30
 
       # ─── LAMBDA JARs ───────────────────────────────────
