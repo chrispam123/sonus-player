@@ -71,7 +71,7 @@ fun PermissionScreen(
                     tint = MaterialTheme.colorScheme.primary
                 )
             },
-            title = { Text("🎨 Efectos visuales") },
+            title = { Text("Efectos visuales") },
             text = {
                 Text(
                     "NO se graba audio del micrófono ni sale nada de tu dispositivo. " +

@@ -11,6 +11,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.logging.HttpLoggingInterceptor
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -32,6 +33,10 @@ object NetworkModule {
         }
         return OkHttpClient.Builder()
             .addInterceptor(logging)
+            // 🆕 Forzar HTTP/1.1: LRCLIB (detrás de Cloudflare) devuelve 520
+            // con el HTTP/2 de OkHttp. curl y Chrome (otras pilas) sí funcionan.
+            // HTTP/1.1 evita el problema y es compatible con todas nuestras APIs.
+            .protocols(listOf(Protocol.HTTP_1_1))
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
