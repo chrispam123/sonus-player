@@ -43,6 +43,12 @@ interface TrackDao {
     @Query("DELETE FROM tracks")
     suspend fun deleteAll()
 
+    // 🆕 Borra pistas LOCALES fantasma (archivo borrado/renombrado del dispositivo)
+    // que ya no aparecen en MediaStore. NO toca las de ccMixter/streaming:
+    // stream_url IS NULL las excluye (las de streaming tienen stream_url != NULL).
+    @Query("DELETE FROM tracks WHERE stream_url IS NULL AND id NOT IN (:validIds)")
+    suspend fun deleteMissingLocalTracks(validIds: List<Long>)
+
     @Query("SELECT COUNT(*) FROM tracks")
     suspend fun getTrackCount(): Int
 }
