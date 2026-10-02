@@ -45,5 +45,12 @@ class MusicRepositoryImpl @Inject constructor(
     suspend fun indexScannedTracks(tracks: List<Track>) {
         val entities = tracks.map { it.toEntity() }
         trackDao.insertAll(entities)
+
+        // 🆕 Limpiar pistas locales fantasma (archivo borrado/movido).
+        // Solo si el escaneo devolvió algo, para no vaciar la librería
+        // si el escaneo falla o no hay canciones.
+        if (entities.isNotEmpty()) {
+            trackDao.deleteMissingLocalTracks(entities.map { it.id })
+        }
     }
 }

@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -105,6 +106,18 @@ class Media3PlayerController @Inject constructor(
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             updatePlaybackState()
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            // 🆕 Si una pista falla (borrada/renombrada/corrupta/duplicada),
+            // saltamos a la siguiente. Tras un error ExoPlayer deja
+            // playWhenReady=false, por eso llamamos play() para que siga
+            // reproduciendo en vez de quedar en pausa.
+            val controller = mediaController ?: return
+            if (controller.hasNextMediaItem()) {
+                controller.seekToNextMediaItem()
+                controller.play()
+            }
         }
 
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {

@@ -274,6 +274,14 @@ class PlayerViewModel @Inject constructor(
     private fun restorePlaybackState() {
         viewModelScope.launch {
             try {
+                // 🆕 Guard: si el reproductor YA tiene una pista cargada
+                // (el servicio sigue vivo, solo se recreó la Activity),
+                // NO resetear la reproducción. Solo restaurar si está vacío
+                // (arranque real tras matar el proceso).
+                if (playerController.currentTrack.value != null) {
+                    return@launch
+                }
+
                 val saved = preferencesRepository.getLastPlaybackState().firstOrNull() ?: return@launch
                 Log.d(TAG, "Restoring state: trackId=${saved.trackId}, pos=${saved.positionMs}")
 
