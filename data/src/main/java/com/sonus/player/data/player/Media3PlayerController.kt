@@ -232,12 +232,6 @@ class Media3PlayerController @Inject constructor(
     }
 
     override fun next() {
-        Log.d(
-            TAG,
-            "next() called: currentIndex=$currentIndex, queueSize=${currentQueue.size}, state=${
-                stateName(mediaController?.playbackState ?: -1)
-            }"
-        )
         mediaController?.seekToNextMediaItem()
     }
 
