@@ -1,11 +1,14 @@
 package com.sonus.player.ui.player
 
+import android.content.res.Configuration
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,10 +80,19 @@ fun NowPlayingScreen(
     val fftData by viewModel.fftData.collectAsState()
     val amplitude by viewModel.amplitude.collectAsState()
 
+    // 🆕 Detectar orientación: en horizontal hacemos el contenido scrolleable
+    // (por si una tablet ignora el bloqueo a vertical). En vertical se mantiene
+    // el diseño actual con los controles abajo.
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(24.dp)
+            .then(
+                if (isLandscape) Modifier.verticalScroll(scrollState) else Modifier
+            ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // 🆕 GlowCircle animado — indica que hay un mood NUEVO disponible.
@@ -213,7 +226,9 @@ fun NowPlayingScreen(
             letterSpacing = 2.sp
         )
 
-        Spacer(modifier = Modifier.weight(1f))
+        if (!isLandscape) {
+            Spacer(modifier = Modifier.weight(1f))
+        }
 
         // Seekbar — thin line, Cyber Lime
         val progress = uiState.progress
