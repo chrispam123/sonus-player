@@ -177,6 +177,8 @@ Pantallas:  NowPlaying, Library, Playlists, Settings
 FullScreen: Lyrics, Search, PlaylistDetail, MoodDetail
 ```
 
+**Orientación (decisión de diseño):** La app está diseñada para **vertical** y se bloquea con `android:screenOrientation="portrait"`. En tablets (Android 12L+) el sistema puede ignorar el bloqueo, por lo que las pantallas usan **scroll de overflow** (`verticalScroll`) como red de seguridad: el contenido se hace scrolleable en vez de recortarse. No se implementa diseño responsive/adaptativo.
+
 ### 5.2 Living Canvas (Shader GLSL)
 
 - **Render:** `TextureView` + EGL manual (no GLSurfaceView para evitar ghost frames)
@@ -265,6 +267,7 @@ NowPlaying → LETRAS → LyricsScreen
 | **clearHistory() post-análisis** | Historial acumulativo | Evita enviar las mismas canciones repetidamente |
 | **API Key en Lambda Receptor** | API Gateway API Keys | HTTP API v2 no soporta API Keys nativas → se valida en el handler |
 | **OIDC + roles scoped** | Credenciales estáticas | Sin secretos long-lived, mínimo privilegio por entorno |
+| **Lock de orientación + scroll** | Diseño responsive/adaptativo | UI pensada para vertical; scroll de overflow como seguridad en tablets |
 
 ---
 

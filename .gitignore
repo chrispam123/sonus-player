@@ -61,6 +61,12 @@ coverage/
 *.tmp
 *.bak
 
+# Scripts locales de diagnóstico/backup (no versionar)
+capture_logs.sh
+backup.sh
+backup_zip.sh
+sonus_logs_*.txt
+
 # ============================================================
 # TERRAFORM — Archivos generados y secretos
 # ============================================================
